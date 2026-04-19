@@ -2,10 +2,13 @@ const std = @import("std");
 const ast = @import("../graphql.zig").ast;
 pub const Schema = @import("./schema/schema.zig").Schema;
 pub const ValidationError = @import("./errors.zig").ValidationError;
+pub const ValidationErrorKind = @import("./errors.zig").ValidationErrorKind;
+pub const validateDocument = @import("validation/document.zig").validateDocument;
 
 pub const Validator = struct {
     allocator: std.mem.Allocator,
     schema: *const Schema,
+    errors: std.ArrayList(ValidationError),
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -14,12 +17,22 @@ pub const Validator = struct {
         return Validator{
             .allocator = allocator,
             .schema = schema,
+            .errors = std.ArrayList(ValidationError).init(allocator),
         };
     }
 
+    pub fn deinit(self: *Validator) void {
+        self.errors.deinit();
+    }
+
+    pub fn addError(self: *Validator, kind: ValidationErrorKind) !void {
+        const err = ValidationError.init(kind);
+        try self.errors.append(err);
+    }
+
     pub fn validateQuery(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
-        _ = document;
-        return try self.allocator.alloc(ValidationError, 0); // TODO: add validation logic.
+        try validateDocument(self, document);
+        return self.errors.toOwnedSlice();
     }
 
     pub fn validateSchema(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
@@ -30,11 +43,13 @@ pub const Validator = struct {
 
 pub fn validateQuery(allocator: std.mem.Allocator, schema: *const Schema, document: ast.DocumentNode) ![]ValidationError {
     var validator = Validator.init(allocator, schema);
+    defer validator.deinit();
     return try validator.validateQuery(document);
 }
 
 pub fn validateSchema(allocator: std.mem.Allocator, schema: *const Schema, document: ast.DocumentNode) ![]ValidationError {
     var validator = Validator.init(allocator, schema);
+    defer validator.deinit();
     return try validator.validateSchema(document);
 }
 
