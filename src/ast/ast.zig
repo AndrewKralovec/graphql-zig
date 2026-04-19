@@ -711,6 +711,29 @@ pub fn is_directive_location(value: []const u8) bool {
     return false;
 }
 
+/// See: https://spec.graphql.org/October2021/#DirectiveLocation
+pub const DirectiveLocation = enum {
+    Query,
+    Mutation,
+    Subscription,
+    Field,
+    FragmentDefinition,
+    FragmentSpread,
+    InlineFragment,
+    VariableDefinition,
+    Schema,
+    Scalar,
+    Object,
+    FieldDefinition,
+    ArgumentDefinition,
+    Interface,
+    Union,
+    Enum,
+    EnumValue,
+    InputObject,
+    InputFieldDefinition,
+};
+
 /// This enum defines the keywords in the GraphQL syntax.
 /// The keywords are used to identify the type of node in the AST.
 pub const SyntaxKeyWord = enum {
