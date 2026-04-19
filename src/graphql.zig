@@ -7,6 +7,7 @@ const std = @import("std");
 pub const ast = @import("ast/ast.zig");
 pub const lexer = @import("lexer/lexer.zig");
 pub const parser = @import("parser/parser.zig");
+pub const validator = @import("validator/validator.zig");
 
 //
 // Test cases for the graphql module
@@ -20,4 +21,5 @@ test {
     _ = @import("ast/ast.zig");
     _ = @import("lexer/lexer.zig");
     _ = @import("parser/parser.zig");
+    _ = @import("validator/validator.zig");
 }
