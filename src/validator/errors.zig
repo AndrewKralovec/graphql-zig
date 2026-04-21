@@ -2,6 +2,15 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const ValidationErrorKind = enum {
+    // UniqueArgumentNamesRule
+    // UniqueArgument
+    /// Unique argument names
+    ///
+    /// A GraphQL field or directive is only valid if all supplied arguments are
+    /// uniquely named.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Argument-Names
+    DuplicateArgumentName,
     // ExecutableDefinitionsRule
     /// Executable definitions
     ///
@@ -10,14 +19,6 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Executable-Definitions
     NonExecutableDefinition,
-    // LoneAnonymousOperationRule
-    /// Lone anonymous operation
-    ///
-    /// A GraphQL document is only valid if when it contains an anonymous operation
-    /// (the query short-hand) that it contains only that one operation definition.
-    ///
-    /// See https://spec.graphql.org/draft/#sec-Lone-Anonymous-Operation
-    MultipleAnonymousOperations,
 };
 
 // TODO: import the validation object in the future
