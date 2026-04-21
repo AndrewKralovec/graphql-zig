@@ -30,7 +30,7 @@ pub const Validator = struct {
         try self.errors.append(err);
     }
 
-    pub fn validateQuery(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
+    pub fn validateExecutableDocument(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
         try validateDocument(self, document);
         return self.errors.toOwnedSlice();
     }
@@ -41,10 +41,10 @@ pub const Validator = struct {
     }
 };
 
-pub fn validateQuery(allocator: std.mem.Allocator, schema: *const Schema, document: ast.DocumentNode) ![]ValidationError {
+pub fn validateExecutableDocument(allocator: std.mem.Allocator, schema: *const Schema, document: ast.DocumentNode) ![]ValidationError {
     var validator = Validator.init(allocator, schema);
     defer validator.deinit();
-    return try validator.validateQuery(document);
+    return try validator.validateExecutableDocument(document);
 }
 
 pub fn validateSchema(allocator: std.mem.Allocator, schema: *const Schema, document: ast.DocumentNode) ![]ValidationError {
@@ -83,7 +83,7 @@ test "should validate query" {
     ;
     const query_doc = try parse(query_allocator, query_source);
 
-    const errors = try validateQuery(allocator, &schema, query_doc);
+    const errors = try validateExecutableDocument(allocator, &schema, query_doc);
     defer {
         for (errors) |*err| {
             err.deinit();
@@ -116,7 +116,7 @@ test "should validate schema" {
     ;
     const query_doc = try parse(query_allocator, query_source);
 
-    const errors = try validateQuery(allocator, &schema, query_doc);
+    const errors = try validateExecutableDocument(allocator, &schema, query_doc);
     defer {
         for (errors) |*err| {
             err.deinit();
