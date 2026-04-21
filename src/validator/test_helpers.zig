@@ -5,7 +5,7 @@ const parse = @import("../graphql.zig").parser.parse;
 pub const Schema = @import("./schema/schema.zig").Schema;
 pub const ValidationError = @import("./errors.zig").ValidationError;
 pub const ValidationErrorKind = @import("./errors.zig").ValidationErrorKind;
-pub const validateQuery = @import("../graphql.zig").validator.validateQuery;
+pub const validateExecutableDocument = @import("../graphql.zig").validator.validateExecutableDocument;
 
 // Test helpers
 
@@ -28,7 +28,7 @@ pub fn expectErrors(
 
     const query_doc = try parse(arena.allocator(), query_source);
 
-    const errors = try validateQuery(allocator, &schema, query_doc);
+    const errors = try validateExecutableDocument(allocator, &schema, query_doc);
     defer {
         for (errors) |*err| {
             err.deinit();
@@ -59,7 +59,7 @@ pub fn expectErrors(
 //     var ctx = Validator.init(allocator, &schema);
 //     defer ctx.deinit();
 
-//     try ctx.validateQuery(query_doc);
+//     try ctx.validateExecutableDocument(query_doc);
 
 //     var err_count: u32 = 0;
 //     for (ctx.errors.items) |err| {
