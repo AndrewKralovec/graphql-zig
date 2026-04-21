@@ -3,16 +3,24 @@ const ast = @import("../../graphql.zig").ast;
 const Validator = @import("../validator.zig").Validator;
 
 pub fn validateDocument(ctx: *Validator, doc: ast.DocumentNode) !void {
-    // TODO: graphql-js does the walk in a single pass. optimize later.
-    // the visitor per rule pattern is very readable, but the implementation isnt very ziggy.
+    // TODO: graphql-js does the walk in a single pass, using visitors. optimize later.
+    // the visitor per rule pattern is very readable, but the implementation isnt very ziggy (and might not be efficient in zig).
+    // going to follow the graphql-rs example instead, which is broken down into their grammar parts/syntax, instead of being broken down by individual grammar rules.
 
-    // validation pass
+    var known_operation_names = std.StringHashMap(void).init(ctx.allocator);
+    defer known_operation_names.deinit();
+
     for (doc.definitions) |def| {
         switch (def) {
             .ExecutableDefinition => |ex| switch (ex) {
                 .OperationDefinition => |op| {
-                    _ = op;
-                    // try validateOperation(ctx, op);
+                    if (op.name) |name| {
+                        if (known_operation_names.contains(name.value)) {
+                            try ctx.addError(.UniqueOperationName);
+                        } else {
+                            try known_operation_names.put(name.value, {});
+                        }
+                    }
                 },
                 .FragmentDefinition => |frag| {
                     _ = frag;
@@ -38,19 +46,10 @@ pub fn validateTypeSystemName(ctx: *Validator, name: []const u8) !void {
 // Test cases for the document validation
 //
 
-const parse = @import("../../graphql.zig").parser.parse;
-const validator = @import("../../graphql.zig").validator;
+const test_helpers = @import("../test_helpers.zig");
 
 test "should validate ExecutableDefinitionsRule" {
-    const allocator = std.testing.allocator;
-    var schema = validator.Schema.init(allocator);
-    defer schema.deinit();
-
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const query_allocator = arena.allocator(); // i dont want to manually free the query nodes
-    const query_source =
+    try test_helpers.expectErrors(
         \\ query Foo {
         \\   user {
         \\     name
@@ -62,16 +61,100 @@ test "should validate ExecutableDefinitionsRule" {
         \\ extend type Guest {
         \\   role: String
         \\ }
-    ;
-    const query_doc = try parse(query_allocator, query_source);
+    , 2);
+}
 
-    const errors = try validator.validateQuery(allocator, &schema, query_doc);
-    defer {
-        for (errors) |*err| {
-            err.deinit();
-        }
-        allocator.free(errors);
-    }
+// UniqueOperationNames
 
-    try std.testing.expectEqual(@as(usize, 2), errors.len);
+test "should allow no operations for unique operation names" {
+    try test_helpers.expectValid(
+        \\ fragment fragA on Type {
+        \\   field
+        \\ }
+    );
+}
+
+test "should allow anonymous operation" {
+    try test_helpers.expectValid(
+        \\ {
+        \\  field
+        \\ }
+    );
+}
+
+test "should allow one operation for unique operation names" {
+    try test_helpers.expectValid(
+        \\ query Foo {
+        \\   field
+        \\ }
+    );
+}
+
+test "should allow multiple operations" {
+    try test_helpers.expectValid(
+        \\ query Foo {
+        \\   field
+        \\ }
+        \\ query Bar {
+        \\   field
+        \\ }
+    );
+}
+
+test "should allow multiple operations with different types" {
+    try test_helpers.expectValid(
+        \\ query Foo {
+        \\   field
+        \\ }
+        \\ mutation Bar {
+        \\   field
+        \\ }
+        \\ subscription Baz {
+        \\   field
+        \\ }
+    );
+}
+
+test "should allow fragment and operation named the same" {
+    try test_helpers.expectValid(
+        \\ query Foo {
+        \\   ...Foo
+        \\ }
+        \\ fragment Foo on Type {
+        \\   field
+        \\ }
+    );
+}
+
+test "should return errors when operations have the same name" {
+    try test_helpers.expectErrors(
+        \\ query Foo {
+        \\   fieldA
+        \\ }
+        \\ query Foo {
+        \\   fieldB
+        \\ }
+    , 1);
+}
+
+test "should return errors when operations ops of same name and different types (mutation)" {
+    try test_helpers.expectErrors(
+        \\ query Foo {
+        \\   fieldA
+        \\ }
+        \\ mutation Foo {
+        \\   fieldB
+        \\ }
+    , 1);
+}
+
+test "should return errors when operations ops of same name and different types (subscription)" {
+    try test_helpers.expectErrors(
+        \\ query Foo {
+        \\   fieldA
+        \\ }
+        \\ subscription Foo {
+        \\   fieldB
+        \\ }
+    , 1);
 }

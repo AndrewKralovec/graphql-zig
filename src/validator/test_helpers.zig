@@ -9,13 +9,13 @@ pub const validateQuery = @import("../graphql.zig").validator.validateQuery;
 
 // Test helpers
 
-fn expectValid(
+pub fn expectValid(
     query_source: []const u8,
 ) !void {
     try expectErrors(query_source, 0);
 }
 
-fn expectErrors(
+pub fn expectErrors(
     query_source: []const u8,
     expected_error_count: usize,
 ) !void {

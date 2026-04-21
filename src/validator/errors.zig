@@ -19,6 +19,21 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Executable-Definitions
     NonExecutableDefinition,
+    // LoneAnonymousOperationRule
+    /// Lone anonymous operation
+    ///
+    /// A GraphQL document is only valid if when it contains an anonymous operation
+    /// (the query short-hand) that it contains only that one operation definition.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Lone-Anonymous-Operation
+    LoneAnonymousOperation,
+    // UniqueOperationNamesRule
+    /// Unique operation names
+    ///
+    /// A GraphQL document is only valid if all defined operations have unique names.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Operation-Name-Uniqueness
+    UniqueOperationName,
 };
 
 // TODO: import the validation object in the future
