@@ -34,23 +34,12 @@ pub const Validator = struct {
         try validateDocument(self, document);
         return self.errors.toOwnedSlice();
     }
-
-    pub fn validateSchema(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
-        _ = document;
-        return try self.allocator.alloc(ValidationError, 0); // TODO: add validation logic.
-    }
 };
 
 pub fn validateExecutableDocument(allocator: std.mem.Allocator, schema: *const Schema, document: ast.DocumentNode) ![]ValidationError {
     var validator = Validator.init(allocator, schema);
     defer validator.deinit();
     return try validator.validateExecutableDocument(document);
-}
-
-pub fn validateSchema(allocator: std.mem.Allocator, schema: *const Schema, document: ast.DocumentNode) ![]ValidationError {
-    var validator = Validator.init(allocator, schema);
-    defer validator.deinit();
-    return try validator.validateSchema(document);
 }
 
 //
