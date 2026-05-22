@@ -16,7 +16,7 @@ pub fn validateDocument(ctx: *Validator, doc: ast.DocumentNode) !void {
                 .OperationDefinition => |op| {
                     if (op.name) |name| {
                         if (known_operation_names.contains(name.value)) {
-                            try ctx.addError(.UniqueOperationName);
+                            try ctx.addError(.UniqueOperation);
                         } else {
                             try known_operation_names.put(name.value, {});
                         }
@@ -64,7 +64,7 @@ test "should validate ExecutableDefinitionsRule" {
     , 2);
 }
 
-// UniqueOperationNames
+// UniqueOperations
 
 test "should allow no operations for unique operation names" {
     try test_helpers.expectValid(
