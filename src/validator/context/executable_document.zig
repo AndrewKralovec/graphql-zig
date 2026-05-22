@@ -1,5 +1,6 @@
 const std = @import("std");
 const ast = @import("../../graphql.zig").ast;
+const DiagnosticList = @import("../validator.zig").DiagnosticList;
 
 /// A processed executable document with indexed operations and fragments.
 pub const ExecutableDocument = struct {
@@ -9,6 +10,7 @@ pub const ExecutableDocument = struct {
 
     pub fn fromDocument(
         allocator: std.mem.Allocator,
+        diagnostics: *DiagnosticList,
         document: ast.DocumentNode,
     ) !ExecutableDocument {
         var operations = OperationMap.init(allocator);
@@ -24,10 +26,14 @@ pub const ExecutableDocument = struct {
                             const result = try operations.named.getOrPut(name.value);
                             if (!result.found_existing) {
                                 result.value_ptr.* = op;
+                            } else {
+                                try diagnostics.push(.UniqueOperation);
                             }
                         } else {
                             if (operations.anonymous == null) {
                                 operations.anonymous = op;
+                            } else {
+                                try diagnostics.push(.LoneAnonymousOperation);
                             }
                         }
                     },
@@ -49,7 +55,6 @@ pub const ExecutableDocument = struct {
         };
     }
 
-    /// Look up a fragment definition by name. O(1) hash lookup.
     pub fn getFragment(self: *const ExecutableDocument, name: []const u8) ?ast.FragmentDefinitionNode {
         return self.fragments.get(name);
     }

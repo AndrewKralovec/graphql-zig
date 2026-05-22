@@ -33,7 +33,7 @@ pub const ValidationErrorKind = enum {
     /// A GraphQL document is only valid if all defined operations have unique names.
     ///
     /// See https://spec.graphql.org/draft/#sec-Operation-Name-Uniqueness
-    UniqueOperationName,
+    UniqueOperation,
 };
 
 // TODO: import the validation object in the future
@@ -48,5 +48,36 @@ pub const ValidationError = struct {
 
     pub fn deinit(self: *ValidationError) void {
         _ = self;
+    }
+};
+
+pub const DiagnosticList = struct {
+    // TODO: We use this allocator for non error reasons.
+    // which is convenient, but not proper use.
+    allocator: Allocator,
+    errors: std.ArrayList(ValidationError),
+
+    pub fn init(allocator: Allocator) DiagnosticList {
+        return DiagnosticList{
+            .allocator = allocator,
+            .errors = std.ArrayList(ValidationError).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *DiagnosticList) void {
+        self.errors.deinit();
+    }
+
+    pub fn push(self: *DiagnosticList, kind: ValidationErrorKind) !void {
+        const err = ValidationError.init(kind);
+        try self.errors.append(err);
+    }
+
+    pub fn toOwnedSlice(self: *DiagnosticList) ![]ValidationError {
+        return self.errors.toOwnedSlice();
+    }
+
+    pub fn len(self: *const DiagnosticList) usize {
+        return self.errors.items.len;
     }
 };

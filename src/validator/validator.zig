@@ -3,6 +3,9 @@ const ast = @import("../graphql.zig").ast;
 pub const Schema = @import("./schema/schema.zig").Schema;
 pub const ValidationError = @import("./errors.zig").ValidationError;
 pub const ValidationErrorKind = @import("./errors.zig").ValidationErrorKind;
+pub const DiagnosticList = @import("./errors.zig").DiagnosticList;
+pub const ExecutableDocument = @import("./context/executable_document.zig").ExecutableDocument;
+pub const ExecutableValidationContext = @import("./context/validation_context.zig").ExecutableValidationContext;
 pub const validateDocument = @import("validation/document.zig").validateDocument;
 
 pub const Validator = struct {
@@ -31,6 +34,15 @@ pub const Validator = struct {
     }
 
     pub fn validateExecutableDocument(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
+        var diagnostics = DiagnosticList.init(self.allocator);
+        defer diagnostics.deinit();
+
+        var context = ExecutableValidationContext.init(self.allocator, self.schema);
+        defer context.deinit();
+
+        var exec_doc = try ExecutableDocument.fromDocument(self.allocator, &diagnostics, document);
+        defer exec_doc.deinit();
+
         try validateDocument(self, document);
         return self.errors.toOwnedSlice();
     }
