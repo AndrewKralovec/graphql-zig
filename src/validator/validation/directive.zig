@@ -1,23 +1,48 @@
 const std = @import("std");
 const ast = @import("../../graphql.zig").ast;
-const Validator = @import("../validator.zig").Validator;
+const DiagnosticList = @import("../validator.zig").DiagnosticList;
+const Schema = @import("../validator.zig").Schema;
 
-pub fn validateDirectivesDefinition(ctx: *Validator, def: ast.DirectiveDefinitionNode) !void {
-    _ = ctx;
+const validateArguments = @import("./argument.zig").validateArguments;
+const validateValues = @import("./value.zig").validateValues;
+const validateVariableUsage = @import("./variable.zig").validateVariableUsage;
+
+pub fn validateDirectiveDefinition(
+    diagnostics: *DiagnosticList,
+    schema: *const Schema,
+    def: ast.DirectiveDefinitionNode,
+) !void {
+    _ = diagnostics;
+    _ = schema;
     _ = def;
-    // TODO: add validation logic
-    // TODO: try validateTypeSystemName(ctx, def.name, "");
-    // TODO: try validateArgumentDefinitions(ctx, args);
+    // TODO: validate type system name: validateTypeSystemName(diagnostics, def.name, "a directive definition")
+    // TODO: validate argument definitions: validateArgumentDefinitions(diagnostics, schema, def.arguments, DirectiveLocation.ArgumentDefinition)
+    // TODO: A directive definition must not contain the use of a directive which
 }
 
-pub fn validateDirectivesDefinitions(ctx: *Validator) !void {
-    _ = ctx;
-    // TODO: add validation logic
+pub fn validateDirectiveDefinitions(
+    diagnostics: *DiagnosticList,
+    schema: *const Schema,
+) !void {
+    _ = diagnostics;
+    _ = schema;
+    // TODO: iterate over schema.directive_definitions
+    // TODO: call validateDirectiveDefinition() for each
 }
 
-pub fn validateDirectives(ctx: *Validator, directives: ?[]const ast.DirectiveNode, location: ast.DirectiveLocation) !void {
-    _ = ctx;
+// TODO: This is a big function: should probably not be generic over the iterator
+// type
+pub fn validateDirectives(
+    diagnostics: *DiagnosticList,
+    schema: ?*const Schema,
+    // TODO: See if this should be a iterator like rust. dirs: impl Iterator<Item = &'dir Node<ast::Directive>>,
+    directives: ?[]const ast.DirectiveNode,
+    dir_loc: ast.DirectiveLocation,
+    var_defs: []const ast.VariableDefinitionNode,
+) !void {
+    _ = diagnostics;
+    _ = schema;
     _ = directives;
-    _ = location;
-    // TODO: add validation logic
+    _ = dir_loc;
+    _ = var_defs;
 }

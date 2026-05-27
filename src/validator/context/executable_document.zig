@@ -4,41 +4,49 @@ const DiagnosticList = @import("../validator.zig").DiagnosticList;
 
 /// A processed executable document with indexed operations and fragments.
 pub const ExecutableDocument = struct {
-    allocator: std.mem.Allocator,
     operations: OperationMap,
     fragments: std.StringArrayHashMap(ast.FragmentDefinitionNode),
+
+    pub fn init(allocator: std.mem.Allocator) ExecutableDocument {
+        return .{
+            .operations = OperationMap.init(allocator),
+            .fragments = std.StringArrayHashMap(ast.FragmentDefinitionNode).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *ExecutableDocument) void {
+        self.operations.deinit();
+        self.fragments.deinit();
+    }
 
     pub fn fromDocument(
         allocator: std.mem.Allocator,
         diagnostics: *DiagnosticList,
         document: ast.DocumentNode,
     ) !ExecutableDocument {
-        var operations = OperationMap.init(allocator);
-        errdefer operations.deinit();
-        var fragments = std.StringArrayHashMap(ast.FragmentDefinitionNode).init(allocator);
-        errdefer fragments.deinit();
+        var exec_doc = ExecutableDocument.init(allocator);
 
         for (document.definitions) |def| {
             switch (def) {
                 .ExecutableDefinition => |ex| switch (ex) {
                     .OperationDefinition => |op| {
                         if (op.name) |name| {
-                            const result = try operations.named.getOrPut(name.value);
+                            const result = try exec_doc.operations.named.getOrPut(name.value);
                             if (!result.found_existing) {
                                 result.value_ptr.* = op;
                             } else {
                                 try diagnostics.push(.UniqueOperation);
                             }
                         } else {
-                            if (operations.anonymous == null) {
-                                operations.anonymous = op;
+                            if (exec_doc.operations.anonymous == null) {
+                                exec_doc.operations.anonymous = op;
                             } else {
                                 try diagnostics.push(.LoneAnonymousOperation);
                             }
                         }
                     },
                     .FragmentDefinition => |frag| {
-                        const result = try fragments.getOrPut(frag.name.value);
+                        const result = try exec_doc.fragments.getOrPut(frag.name.value);
                         if (!result.found_existing) {
                             result.value_ptr.* = frag;
                         }
@@ -48,20 +56,11 @@ pub const ExecutableDocument = struct {
             }
         }
 
-        return ExecutableDocument{
-            .allocator = allocator,
-            .operations = operations,
-            .fragments = fragments,
-        };
+        return exec_doc;
     }
 
     pub fn getFragment(self: *const ExecutableDocument, name: []const u8) ?ast.FragmentDefinitionNode {
         return self.fragments.get(name);
-    }
-
-    pub fn deinit(self: *ExecutableDocument) void {
-        self.operations.deinit();
-        self.fragments.deinit();
     }
 };
 
