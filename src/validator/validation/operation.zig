@@ -48,6 +48,15 @@ pub fn validateOperation(
         );
     }
     try validateUnusedVariables(diagnostics, exec_doc, operation);
+    if (operation.selection_set) |sel_set| {
+        try validateSelectionSet(
+            diagnostics,
+            exec_doc,
+            // against_type,
+            sel_set,
+            // &mut context.operation_context(&operation.variables),
+        );
+    }
 }
 
 pub fn validateOperationDefinitions(
