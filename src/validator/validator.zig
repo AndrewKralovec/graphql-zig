@@ -6,7 +6,7 @@ pub const ValidationErrorKind = @import("./errors.zig").ValidationErrorKind;
 pub const DiagnosticList = @import("./errors.zig").DiagnosticList;
 pub const ExecutableDocument = @import("./context/executable_document.zig").ExecutableDocument;
 pub const ExecutableValidationContext = @import("./context/validation_context.zig").ExecutableValidationContext;
-pub const validateDocument = @import("validation/document.zig").validateDocument;
+pub const validateOperationDefinitions = @import("validation/operation.zig").validateOperationDefinitions;
 
 pub const Validator = struct {
     allocator: std.mem.Allocator,
@@ -43,8 +43,8 @@ pub const Validator = struct {
         var exec_doc = try ExecutableDocument.fromDocument(self.allocator, &diagnostics, document);
         defer exec_doc.deinit();
 
-        try validateDocument(self, document);
-        return self.errors.toOwnedSlice();
+        try validateOperationDefinitions(&diagnostics, &exec_doc, &context);
+        return diagnostics.toOwnedSlice();
     }
 };
 
