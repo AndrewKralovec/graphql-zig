@@ -33,6 +33,7 @@ pub fn validateDirectiveDefinitions(
 // TODO: This is a big function: should probably not be generic over the iterator
 // type
 pub fn validateDirectives(
+    allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     schema: ?*const Schema,
     // TODO: See if this should be a iterator like rust. dirs: impl Iterator<Item = &'dir Node<ast::Directive>>,
@@ -40,9 +41,21 @@ pub fn validateDirectives(
     dir_loc: ast.DirectiveLocation,
     var_defs: []const ast.VariableDefinitionNode,
 ) !void {
-    _ = diagnostics;
+    _ = var_defs;
+    const dirs = directives orelse return;
+
+    var seen_directives = std.StringHashMap(bool).init(allocator);
+    defer seen_directives.deinit();
+
+    for (dirs) |dir| {
+        try validateArguments(
+            allocator,
+            diagnostics,
+            dir.arguments,
+        );
+    }
+
     _ = schema;
-    _ = directives;
     _ = dir_loc;
     _ = var_defs;
 }

@@ -3,14 +3,13 @@ const Allocator = std.mem.Allocator;
 
 pub const ValidationErrorKind = enum {
     // UniqueArgumentNamesRule
-    // UniqueArgument
     /// Unique argument names
     ///
     /// A GraphQL field or directive is only valid if all supplied arguments are
     /// uniquely named.
     ///
     /// See https://spec.graphql.org/draft/#sec-Argument-Names
-    DuplicateArgumentName,
+    UniqueArgumentName,
     // ExecutableDefinitionsRule
     /// Executable definitions
     ///

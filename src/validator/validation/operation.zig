@@ -31,6 +31,7 @@ pub fn validateOperation(
         const operation_var_defs = operation.variable_definitions orelse &[_]ast.VariableDefinitionNode{};
 
         try validateDirectives(
+            context.allocator,
             diagnostics,
             s,
             operation.directives,
