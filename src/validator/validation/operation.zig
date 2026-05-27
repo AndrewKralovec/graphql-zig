@@ -4,6 +4,7 @@ const Validator = @import("../validator.zig").Validator;
 const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
 const ExecutableValidationContext = @import("../validator.zig").ExecutableValidationContext;
+const OperationValidationContext = @import("../validator.zig").OperationValidationContext;
 
 const validateDirectives = @import("./directive.zig").validateDirectives;
 const validateSelectionSet = @import("./selection.zig").validateSelectionSet;
@@ -49,12 +50,15 @@ pub fn validateOperation(
     }
     try validateUnusedVariables(diagnostics, exec_doc, operation);
     if (operation.selection_set) |sel_set| {
+        var op_context = context.operationContext(operation.variable_definitions);
+        defer op_context.deinit();
+
         try validateSelectionSet(
             diagnostics,
             exec_doc,
             // against_type,
             sel_set,
-            // &mut context.operation_context(&operation.variables),
+            &op_context,
         );
     }
 }

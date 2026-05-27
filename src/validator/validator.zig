@@ -6,6 +6,7 @@ pub const ValidationErrorKind = @import("./errors.zig").ValidationErrorKind;
 pub const DiagnosticList = @import("./errors.zig").DiagnosticList;
 pub const ExecutableDocument = @import("./context/executable_document.zig").ExecutableDocument;
 pub const ExecutableValidationContext = @import("./context/validation_context.zig").ExecutableValidationContext;
+pub const OperationValidationContext = @import("./context/validation_context.zig").OperationValidationContext;
 pub const validateOperationDefinitions = @import("validation/operation.zig").validateOperationDefinitions;
 
 pub const Validator = struct {
