@@ -1,11 +1,18 @@
 const std = @import("std");
 const ast = @import("../../graphql.zig").ast;
+const DiagnosticList = @import("../validator.zig").DiagnosticList;
+const Schema = @import("../validator.zig").Schema;
+const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
 const Validator = @import("../validator.zig").Validator;
 
 pub fn validateVariableDefinitions(
-    ctx: *Validator,
+    ctx: *DiagnosticList,
+    schema: ?*const Schema,
+    variable_definitions: []const ast.VariableDefinitionNode,
 ) !void {
     _ = ctx;
+    _ = schema;
+    _ = variable_definitions;
     // TODO: add validation logic
 }
 
@@ -31,9 +38,13 @@ fn variablesInDirectives(
 }
 
 pub fn validateUnusedVariables(
-    ctx: *Validator,
+    validator: *DiagnosticList,
+    exec_doc: *const ExecutableDocument,
+    operation: ast.OperationDefinitionNode,
 ) !void {
-    _ = ctx;
+    _ = validator;
+    _ = exec_doc;
+    _ = operation;
     // TODO: add validation logic
 }
 

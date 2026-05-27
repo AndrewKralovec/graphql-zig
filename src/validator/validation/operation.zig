@@ -6,6 +6,9 @@ const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
 const ExecutableValidationContext = @import("../validator.zig").ExecutableValidationContext;
 
 const validateDirectives = @import("./directive.zig").validateDirectives;
+const validateSelectionSet = @import("./selection.zig").validateSelectionSet;
+const validateVariableDefinitions = @import("./variable.zig").validateVariableDefinitions;
+const validateUnusedVariables = @import("./variable.zig").validateUnusedVariables;
 
 fn walkSelections() void {
     // TODO: add validation logic
@@ -24,21 +27,27 @@ pub fn validateOperation(
     operation: ast.OperationDefinitionNode,
     context: *ExecutableValidationContext,
 ) !void {
-    _ = exec_doc;
+    // const against_type = // TODO
 
-    if (context.schema()) |s| {
-        const dir_loc = operationTypeToDirectiveLocation(operation.operation);
-        const operation_var_defs = operation.variable_definitions orelse &[_]ast.VariableDefinitionNode{};
+    const dir_loc = operationTypeToDirectiveLocation(operation.operation);
+    const operation_var_defs = operation.variable_definitions orelse &[_]ast.VariableDefinitionNode{};
 
-        try validateDirectives(
-            context.allocator,
+    try validateDirectives(
+        context.allocator,
+        diagnostics,
+        context.schema(),
+        operation.directives,
+        dir_loc,
+        operation_var_defs,
+    );
+    if (operation.variable_definitions) |var_defs| {
+        try validateVariableDefinitions(
             diagnostics,
-            s,
-            operation.directives,
-            dir_loc,
-            operation_var_defs,
+            context.schema(),
+            var_defs,
         );
     }
+    try validateUnusedVariables(diagnostics, exec_doc, operation);
 }
 
 pub fn validateOperationDefinitions(
