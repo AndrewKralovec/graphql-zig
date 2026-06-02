@@ -1,24 +1,45 @@
 const std = @import("std");
 const ast = @import("../../graphql.zig").ast;
 const Validator = @import("../validator.zig").Validator;
+const DiagnosticList = @import("../validator.zig").DiagnosticList;
+const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
+const OperationValidationContext = @import("../validator.zig").OperationValidationContext;
+const Schema = @import("../validator.zig").Schema;
+
+const validateSelectionSet = @import("./selection.zig").validateSelectionSet;
+
+fn innerNamedType(type_node: *const ast.TypeNode) ast.NamedTypeNode {
+    return switch (type_node.*) {
+        .NamedType => |named| named,
+        .ListType => |list| innerNamedType(list.type),
+        .NonNullType => |non_null| innerNamedType(non_null.type),
+    };
+}
 
 pub fn validateField(
-    ctx: *Validator,
-    // TODO: document: &ExecutableDocument, what should we do with this?
-    // May be None if a parent selection was invalid
-    against_type: ?[]const u8, // TODO: what type should this be?
+    diagnostics: *DiagnosticList,
+    exec_doc: *const ExecutableDocument,
+    against_type: ?ast.NamedTypeNode,
     field: ast.FieldNode,
-    // TODO: context: &mut OperationValidationContext<'_>, what should we do with this?
-) anyerror!void {
-    _ = ctx;
-    _ = field;
-    _ = against_type;
-    // TODO: add validation logic
+    context: *OperationValidationContext,
+) std.mem.Allocator.Error!void {
+    var nested_against_type: ?ast.NamedTypeNode = null;
+
+    if (against_type) |at| {
+        if (context.schema()) |s| {
+            if (s.typeField(at, field.name.value)) |field_def| {
+                nested_against_type = innerNamedType(field_def.type);
+            }
+        }
+    }
+
+    if (field.selection_set) |sel_set| {
+        try validateSelectionSet(diagnostics, exec_doc, nested_against_type, sel_set, context);
+    }
 }
 
 pub fn validateFieldDefinition(
     ctx: *Validator,
-    // TODO: built_in_scalars: &mut BuiltInScalars, what should we do with this?
     field_def: ast.FieldDefinitionNode,
 ) anyerror!void {
     _ = ctx;
@@ -28,7 +49,6 @@ pub fn validateFieldDefinition(
 
 pub fn validateFieldDefinitions(
     ctx: *Validator,
-    // TODO: built_in_scalars: &mut BuiltInScalars, what should we do with this?
     fields: []const ast.FieldDefinitionNode,
 ) anyerror!void {
     _ = ctx;
@@ -38,9 +58,8 @@ pub fn validateFieldDefinitions(
 
 pub fn validateLeafFieldSelection(
     ctx: *Validator,
-    parent_type: []const u8, // TODO: what type should this be?
+    parent_type: []const u8,
     field: ast.FieldNode,
-    // field_type: &ast::Type, what should we do with this?
 ) anyerror!void {
     _ = ctx;
     _ = parent_type;
