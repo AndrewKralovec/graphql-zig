@@ -5,7 +5,6 @@ const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
 const ExecutableValidationContext = @import("../validator.zig").ExecutableValidationContext;
 const OperationValidationContext = @import("../validator.zig").OperationValidationContext;
-
 const validateDirectives = @import("./directive.zig").validateDirectives;
 const validateSelectionSet = @import("./selection.zig").validateSelectionSet;
 const validateVariableDefinitions = @import("./variable.zig").validateVariableDefinitions;
@@ -28,7 +27,10 @@ pub fn validateOperation(
     operation: ast.OperationDefinitionNode,
     context: *ExecutableValidationContext,
 ) !void {
-    // const against_type = // TODO
+    const against_type: ?ast.NamedTypeNode = if (context.schema()) |s|
+        s.rootOperation(operation.operation)
+    else
+        null;
 
     const dir_loc = operationTypeToDirectiveLocation(operation.operation);
     const operation_var_defs = operation.variable_definitions orelse &[_]ast.VariableDefinitionNode{};
@@ -56,7 +58,7 @@ pub fn validateOperation(
         try validateSelectionSet(
             diagnostics,
             exec_doc,
-            // against_type,
+            against_type,
             sel_set,
             &op_context,
         );
@@ -77,8 +79,6 @@ pub fn validateOperationDefinitions(
     }
 }
 
-// TODO: implement operation.operation_type.into(),
-// This is a placeholder.
 fn operationTypeToDirectiveLocation(op_type: ast.OperationType) ast.DirectiveLocation {
     return switch (op_type) {
         .Query => .Query,

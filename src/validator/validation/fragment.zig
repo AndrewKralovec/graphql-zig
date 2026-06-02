@@ -1,6 +1,11 @@
 const std = @import("std");
 const ast = @import("../../graphql.zig").ast;
 const Validator = @import("../validator.zig").Validator;
+const DiagnosticList = @import("../validator.zig").DiagnosticList;
+const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
+const OperationValidationContext = @import("../validator.zig").OperationValidationContext;
+
+const validateSelectionSet = @import("./selection.zig").validateSelectionSet;
 
 /// Given a type definition, find all the type names that can be used for fragment spreading.
 ///
@@ -20,24 +25,47 @@ pub fn validateFragmentSpreadType(
 }
 
 pub fn validateInlineFragment(
-    ctx: *Validator,
-) anyerror!void {
-    _ = ctx;
-    // TODO: add validation logic
+    diagnostics: *DiagnosticList,
+    exec_doc: *const ExecutableDocument,
+    against_type: ?ast.NamedTypeNode,
+    inline_fragment: ast.InlineFragmentNode,
+    context: *OperationValidationContext,
+) std.mem.Allocator.Error!void {
+    const fragment_against_type: ?ast.NamedTypeNode = if (inline_fragment.type_condition) |type_cond|
+        type_cond
+    else
+        against_type;
+
+    try validateSelectionSet(diagnostics, exec_doc, fragment_against_type, inline_fragment.selection_set, context);
 }
 
 pub fn validateFragmentSpread(
-    ctx: *Validator,
-) anyerror!void {
-    _ = ctx;
-    // TODO: add validation logic
+    diagnostics: *DiagnosticList,
+    exec_doc: *const ExecutableDocument,
+    against_type: ?ast.NamedTypeNode,
+    spread: ast.FragmentSpreadNode,
+    context: *OperationValidationContext,
+) std.mem.Allocator.Error!void {
+    _ = against_type;
+    const frag_def = exec_doc.getFragment(spread.name.value) orelse return;
+    const gop = try context.validated_fragments.getOrPut(spread.name.value);
+    if (gop.found_existing) return;
+
+    const fragment_against_type: ?ast.NamedTypeNode = frag_def.type_condition;
+    try validateSelectionSet(diagnostics, exec_doc, fragment_against_type, frag_def.selection_set, context);
 }
 
 pub fn validateFragmentDefinition(
-    ctx: *Validator,
-) anyerror!void {
-    _ = ctx;
-    // TODO: add validation logic
+    diagnostics: *DiagnosticList,
+    exec_doc: *const ExecutableDocument,
+    against_type: ?ast.NamedTypeNode,
+    fragment: ast.FragmentDefinitionNode,
+    context: *OperationValidationContext,
+) std.mem.Allocator.Error!void {
+    _ = against_type;
+
+    const fragment_against_type: ?ast.NamedTypeNode = fragment.type_condition;
+    try validateSelectionSet(diagnostics, exec_doc, fragment_against_type, fragment.selection_set, context);
 }
 
 fn validateFragmentCycles(
