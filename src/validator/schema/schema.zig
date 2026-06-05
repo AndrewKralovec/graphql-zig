@@ -4,18 +4,21 @@ const ast = @import("../../graphql.zig").ast;
 pub const Schema = struct {
     allocator: std.mem.Allocator,
     type_definitions: std.StringArrayHashMap(ast.TypeDefinitionNode),
+    directive_definitions: std.StringArrayHashMap(ast.DirectiveDefinitionNode),
     root_operations: [3]?ast.NamedTypeNode,
 
     pub fn init(allocator: std.mem.Allocator) Schema {
         return Schema{
             .allocator = allocator,
             .type_definitions = std.StringArrayHashMap(ast.TypeDefinitionNode).init(allocator),
+            .directive_definitions = std.StringArrayHashMap(ast.DirectiveDefinitionNode).init(allocator),
             .root_operations = .{ null, null, null },
         };
     }
 
     pub fn deinit(self: *Schema) void {
         self.type_definitions.deinit();
+        self.directive_definitions.deinit();
     }
 
     /// Returns the name of the object type for the root operation with the given operation kind

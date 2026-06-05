@@ -33,6 +33,33 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Operation-Name-Uniqueness
     UniqueOperation,
+    // Directive validation errors
+    /// Unique directive
+    ///
+    /// A GraphQL directive is only valid if it's not repeated when non-repeatable.
+    UniqueDirective,
+    // KnownDirectivesRule
+    /// Known directives
+    ///
+    /// A GraphQL document is only valid if all `@directives` are known by the
+    /// schema and legally positioned.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Directives-Are-Defined
+    UndefinedDirective,
+    /// Directive used at an unsupported location.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Directives-Are-In-Valid-Locations
+    UnsupportedLocation,
+    /// Argument not defined for a directive.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Directives-Are-Defined
+    UndefinedArgument,
+    /// Required argument is missing or null.
+    /// A field or directive is only valid if all required (non-null without a
+    /// default value) field arguments have been provided.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Required-Arguments
+    RequiredArgument,
 };
 
 // TODO: import the validation object in the future

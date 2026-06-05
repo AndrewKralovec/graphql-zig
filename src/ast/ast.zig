@@ -734,6 +734,32 @@ pub const DirectiveLocation = enum {
     InputFieldDefinition,
 };
 
+const directive_location_map = std.StaticStringMap(DirectiveLocation).initComptime(.{
+    .{ "QUERY", .Query },
+    .{ "MUTATION", .Mutation },
+    .{ "SUBSCRIPTION", .Subscription },
+    .{ "FIELD", .Field },
+    .{ "FRAGMENT_DEFINITION", .FragmentDefinition },
+    .{ "FRAGMENT_SPREAD", .FragmentSpread },
+    .{ "INLINE_FRAGMENT", .InlineFragment },
+    .{ "VARIABLE_DEFINITION", .VariableDefinition },
+    .{ "SCHEMA", .Schema },
+    .{ "SCALAR", .Scalar },
+    .{ "OBJECT", .Object },
+    .{ "FIELD_DEFINITION", .FieldDefinition },
+    .{ "ARGUMENT_DEFINITION", .ArgumentDefinition },
+    .{ "INTERFACE", .Interface },
+    .{ "UNION", .Union },
+    .{ "ENUM", .Enum },
+    .{ "ENUM_VALUE", .EnumValue },
+    .{ "INPUT_OBJECT", .InputObject },
+    .{ "INPUT_FIELD_DEFINITION", .InputFieldDefinition },
+});
+
+pub fn directiveLocationFromString(value: []const u8) ?DirectiveLocation {
+    return directive_location_map.get(value);
+}
+
 /// This enum defines the keywords in the GraphQL syntax.
 /// The keywords are used to identify the type of node in the AST.
 pub const SyntaxKeyWord = enum {
