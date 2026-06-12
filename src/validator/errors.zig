@@ -60,6 +60,16 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Required-Arguments
     RequiredArgument,
+    // UnusedVariableRule
+    /// All variables defined by an operation must be used in that operation
+    /// or a fragment transitively included by that operation. Unused variables
+    /// cause a validation error.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-All-Variables-Used
+    UnusedVariable,
+    // RecursionError
+    /// Selection set recursion exceeded the configured depth limit.
+    RecursionError,
 };
 
 // TODO: import the validation object in the future
