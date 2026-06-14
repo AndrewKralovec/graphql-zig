@@ -4,6 +4,10 @@ const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
 
+// This has a much higher limit than comparable recursive walks, like the one in
+// `validate_fragment_cycles`, despite doing similar work. This is because this limit
+// was introduced later and should not break (reasonable) existing queries that are
+// under that pre-existing limit. Luckily the existing limit was very conservative.
 const max_walk_depth = 500; // TODO: This should be configurable
 
 pub fn validateVariableDefinitions(
