@@ -394,6 +394,14 @@ pub const TypeNode = union(enum) {
             },
         }
     }
+
+    pub fn innerNamedType(self: *const TypeNode) NamedTypeNode {
+        return switch (self.*) {
+            .NamedType => |named| named,
+            .ListType => |list| innerNamedType(list.type),
+            .NonNullType => |non_null| innerNamedType(non_null.type),
+        };
+    }
 };
 
 /// See: https://spec.graphql.org/October2021/#NamedType
@@ -462,6 +470,13 @@ pub const TypeDefinitionNode = union(enum) {
     UnionTypeDefinition: UnionTypeDefinitionNode,
     EnumTypeDefinition: EnumTypeDefinitionNode,
     InputObjectTypeDefinition: InputObjectTypeDefinitionNode,
+
+    pub fn isInputType(type_def: TypeDefinitionNode) bool {
+        return switch (type_def) {
+            .ScalarTypeDefinition, .EnumTypeDefinition, .InputObjectTypeDefinition => true,
+            .ObjectTypeDefinition, .InterfaceTypeDefinition, .UnionTypeDefinition => false,
+        };
+    }
 };
 
 /// See: https://spec.graphql.org/October2021/#ScalarTypeDefinition

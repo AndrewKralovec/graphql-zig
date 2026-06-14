@@ -23,8 +23,16 @@ pub fn validateValues(
 }
 
 pub fn valueOfCorrectType(
-    ctx: *DiagnosticList,
+    diagnostics: *DiagnosticList,
+    schema: ?*const Schema,
+    ty: *ast.TypeNode,
+    arg_value: ast.ValueNode,
+    var_defs: []const ast.VariableDefinitionNode,
 ) !void {
-    _ = ctx;
+    _ = diagnostics;
+    _ = schema;
+    _ = ty;
+    _ = arg_value;
+    _ = var_defs;
     // TODO: add validation logic
 }
