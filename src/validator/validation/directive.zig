@@ -85,18 +85,10 @@ pub fn validateDirectives(
                 for (args) |arg| {
                     const arg_def = findArgumentDefinition(def.arguments, arg.name.value);
                     if (arg_def) |input_value| {
-                        try validateVariableUsage(diagnostics, input_value, var_defs, arg);
-                        // TODO: validate value type correctness once validateValues supported
-                        // .is_ok()
-                        // {
-                        //     validateValues(
-                        //         diagnostics,
-                        //         schema,
-                        //         &input_value.type,
-                        //         arg,
-                        //         var_defs,
-                        //     );
-                        // }
+                        if (try validateVariableUsage(diagnostics, input_value, var_defs, arg)) {
+                            // TODO: validate value type correctness once validateValues is implemented
+                            // try validateValues(diagnostics, schema, input_value.type, arg, var_defs);
+                        }
                     } else {
                         try diagnostics.push(.UndefinedArgument);
                     }
@@ -106,7 +98,7 @@ pub fn validateDirectives(
             // every nonnull argument without a default must be provided
             if (def.arguments) |arg_defs| {
                 for (arg_defs) |arg_def| {
-                    if (isRequiredArgument(arg_def)) {
+                    if (arg_def.isRequiredArgument()) {
                         if (!isArgumentProvided(dir.arguments, arg_def.name.value)) {
                             try diagnostics.push(.RequiredArgument);
                         }
@@ -129,7 +121,8 @@ fn isLocationAllowed(def_locations: []const ast.NameNode, dir_loc: ast.Directive
     return false;
 }
 
-fn findArgumentDefinition(
+// TODO: move
+pub fn findArgumentDefinition(
     arg_defs: ?[]const ast.InputValueDefinitionNode,
     name: []const u8,
 ) ?ast.InputValueDefinitionNode {
@@ -142,11 +135,8 @@ fn findArgumentDefinition(
     return null;
 }
 
-fn isRequiredArgument(arg_def: ast.InputValueDefinitionNode) bool {
-    return arg_def.type.* == .NonNullType and arg_def.default_value == null;
-}
-
-fn isArgumentProvided(arguments: ?[]const ast.ArgumentNode, name: []const u8) bool {
+// TODO: move
+pub fn isArgumentProvided(arguments: ?[]const ast.ArgumentNode, name: []const u8) bool {
     const args = arguments orelse return false;
     for (args) |arg| {
         if (std.mem.eql(u8, arg.name.value, name)) {

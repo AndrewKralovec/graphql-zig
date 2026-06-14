@@ -179,21 +179,23 @@ pub fn validateVariableUsage(
     var_usage: ast.InputValueDefinitionNode,
     var_defs: []const ast.VariableDefinitionNode,
     argument: ast.ArgumentNode,
-) !void {
+) !bool {
     const var_name = switch (argument.value) {
         .Variable => |v| v.name.value,
-        else => return,
+        else => return true,
     };
 
     // Let var_def be the VariableDefinition named
     // variable_name defined within operation.
     const var_def = for (var_defs) |def| {
         if (std.mem.eql(u8, def.variable.name.value, var_name)) break def;
-    } else return; // undefined variable is caught by a separate rule
+    } else return true; // undefined variable is caught by a separate rule
 
     if (!isVariableUsageAllowed(var_def, var_usage)) {
         try diagnostics.push(.DisallowedVariableUsage);
+        return false;
     }
+    return true;
 }
 
 // https://spec.graphql.org/draft/#sec-All-Variable-Usages-Are-Allowed

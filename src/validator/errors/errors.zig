@@ -33,10 +33,12 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Operation-Name-Uniqueness
     UniqueOperation,
-    // Directive validation errors
-    /// Unique directive
+    // UniqueDirectivesPerLocationRule
+    /// Unique directives per location
     ///
     /// A GraphQL directive is only valid if it's not repeated when non-repeatable.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Directives-Are-Unique-Per-Location
     UniqueDirective,
     // KnownDirectivesRule
     /// Known directives
@@ -46,49 +48,79 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Directives-Are-Defined
     UndefinedDirective,
-    /// Directive used at an unsupported location.
+    // KnownDirectivesRule
+    /// Directives are in valid locations
+    ///
+    /// A GraphQL document is only valid if all directives are used in locations
+    /// that are valid for those directives.
     ///
     /// See https://spec.graphql.org/draft/#sec-Directives-Are-In-Valid-Locations
     UnsupportedLocation,
-    /// Argument not defined for a directive.
+    // KnownArgumentNamesRule
+    /// Known argument names
     ///
-    /// See https://spec.graphql.org/draft/#sec-Directives-Are-Defined
+    /// A GraphQL field or directive is only valid if all supplied arguments are
+    /// defined by that field or directive.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Argument-Names
     UndefinedArgument,
+    // ProvidedRequiredArgumentsRule
     /// Required argument is missing or null.
     /// A field or directive is only valid if all required (non-null without a
     /// default value) field arguments have been provided.
     ///
     /// See https://spec.graphql.org/draft/#sec-Required-Arguments
     RequiredArgument,
-    // UnusedVariableRule
-    /// All variables defined by an operation must be used in that operation
-    /// or a fragment transitively included by that operation. Unused variables
-    /// cause a validation error.
+    // NoUnusedVariablesRule
+    /// A GraphQL operation is only valid if all variables defined by an operation
+    /// are used, either directly or within a spread fragment.
     ///
     /// See https://spec.graphql.org/draft/#sec-All-Variables-Used
     UnusedVariable,
     // RecursionError
     /// Selection set recursion exceeded the configured depth limit.
     RecursionError,
-    // AllVariableUsagesAllowedRule
-    /// Variable usages must be compatible with the arguments they are
-    /// passed to.
+    // VariablesInAllowedPositionRule
+    /// Variable usages must be compatible with the arguments they are passed to.
     ///
     /// See https://spec.graphql.org/draft/#sec-All-Variable-Usages-Are-Allowed
     DisallowedVariableUsage,
     // UniqueVariableNamesRule
-    /// All variables defined by an operation must be uniquely named.
+    /// Unique variable names
     ///
+    /// A GraphQL operation is only valid if all its variables are uniquely named.
     /// See https://spec.graphql.org/draft/#sec-Variable-Uniqueness
     UniqueVariable,
     // VariablesAreInputTypesRule
-    /// Variables can only be input types. Objects, Unions, and Interfaces
-    /// cannot be used as inputs.
+    /// Variables are input types
     ///
+    /// A GraphQL operation is only valid if all the variables it defines are of
+    /// input types (scalar, enum, or input object).
     /// See https://spec.graphql.org/draft/#sec-Variables-Are-Input-Types
     VariableInputType,
+    // KnownTypeNamesRule
+    /// Known type names
+    ///
     /// A referenced type is not defined in the schema.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Named-Type-References
     UndefinedDefinition,
+    /// Field selections on composite types must have sub-selections.
+    ///
+    /// A field that returns a composite type (Object, Interface, Union)
+    /// must include a selection set.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Leaf-Field-Selections
+    MissingSubselection,
+    // OutputTypeValidation
+    /// Output types
+    ///
+    /// A field definition's return type is not a valid output type.
+    /// Field types in Object Types must be of output type
+    /// (Scalar, Object, Interface, Union, or Enum).
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Objects
+    OutputType,
 };
 
 // TODO: import the validation object in the future

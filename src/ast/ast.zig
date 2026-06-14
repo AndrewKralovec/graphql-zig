@@ -477,6 +477,20 @@ pub const TypeDefinitionNode = union(enum) {
             .ObjectTypeDefinition, .InterfaceTypeDefinition, .UnionTypeDefinition => false,
         };
     }
+
+    pub fn isOutputType(type_def: TypeDefinitionNode) bool {
+        return switch (type_def) {
+            .ScalarTypeDefinition, .EnumTypeDefinition, .ObjectTypeDefinition, .InterfaceTypeDefinition, .UnionTypeDefinition => true,
+            .InputObjectTypeDefinition => false,
+        };
+    }
+
+    pub fn isCompositeType(type_def: TypeDefinitionNode) bool {
+        return switch (type_def) {
+            .ObjectTypeDefinition, .InterfaceTypeDefinition, .UnionTypeDefinition => true,
+            .ScalarTypeDefinition, .EnumTypeDefinition, .InputObjectTypeDefinition => false,
+        };
+    }
 };
 
 /// See: https://spec.graphql.org/October2021/#ScalarTypeDefinition
@@ -586,6 +600,10 @@ pub const InputValueDefinitionNode = struct {
     type: *TypeNode,
     default_value: ?ValueNode,
     directives: ?[]const DirectiveNode,
+
+    pub fn isRequiredArgument(self: @This()) bool {
+        return self.type.* == .NonNullType and self.default_value == null;
+    }
 };
 
 /// See: https://spec.graphql.org/October2021/#DirectiveDefinition
