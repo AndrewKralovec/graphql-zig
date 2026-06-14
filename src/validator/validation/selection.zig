@@ -16,9 +16,27 @@ pub fn validateSelectionSet(
 ) std.mem.Allocator.Error!void {
     for (selection_set.selections) |selection| {
         switch (selection) {
-            .Field => |field| try validateField(diagnostics, exec_doc, against_type, field, context),
-            .FragmentSpread => |spread| try validateFragmentSpread(diagnostics, exec_doc, against_type, spread, context),
-            .InlineFragment => |inline_frag| try validateInlineFragment(diagnostics, exec_doc, against_type, inline_frag, context),
+            .Field => |field| try validateField(
+                diagnostics,
+                exec_doc,
+                against_type,
+                field,
+                context,
+            ),
+            .FragmentSpread => |spread| try validateFragmentSpread(
+                diagnostics,
+                exec_doc,
+                against_type,
+                spread,
+                context,
+            ),
+            .InlineFragment => |inline_frag| try validateInlineFragment(
+                diagnostics,
+                exec_doc,
+                against_type,
+                inline_frag,
+                context,
+            ),
         }
     }
 }

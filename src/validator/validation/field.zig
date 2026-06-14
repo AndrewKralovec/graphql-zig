@@ -8,17 +8,10 @@ const Schema = @import("../validator.zig").Schema;
 
 const validateSelectionSet = @import("./selection.zig").validateSelectionSet;
 
-fn innerNamedType(type_node: *const ast.TypeNode) ast.NamedTypeNode {
-    return switch (type_node.*) {
-        .NamedType => |named| named,
-        .ListType => |list| innerNamedType(list.type),
-        .NonNullType => |non_null| innerNamedType(non_null.type),
-    };
-}
-
 pub fn validateField(
     diagnostics: *DiagnosticList,
     exec_doc: *const ExecutableDocument,
+    // May be None if a parent selection was invalid
     against_type: ?ast.NamedTypeNode,
     field: ast.FieldNode,
     context: *OperationValidationContext,
@@ -28,7 +21,7 @@ pub fn validateField(
     if (against_type) |at| {
         if (context.schema()) |s| {
             if (s.typeField(at, field.name.value)) |field_def| {
-                nested_against_type = innerNamedType(field_def.type);
+                nested_against_type = field_def.type.innerNamedType();
             }
         }
     }
