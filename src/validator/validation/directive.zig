@@ -5,6 +5,7 @@ const Schema = @import("../validator.zig").Schema;
 
 const validateArguments = @import("./argument.zig").validateArguments;
 const validateVariableUsage = @import("./variable.zig").validateVariableUsage;
+const validateValues = @import("./value.zig").validateValues;
 
 pub fn validateDirectiveDefinition(
     diagnostics: *DiagnosticList,
@@ -86,6 +87,16 @@ pub fn validateDirectives(
                     if (arg_def) |input_value| {
                         try validateVariableUsage(diagnostics, input_value, var_defs, arg);
                         // TODO: validate value type correctness once validateValues supported
+                        // .is_ok()
+                        // {
+                        //     validateValues(
+                        //         diagnostics,
+                        //         schema,
+                        //         &input_value.type,
+                        //         arg,
+                        //         var_defs,
+                        //     );
+                        // }
                     } else {
                         try diagnostics.push(.UndefinedArgument);
                     }
