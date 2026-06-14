@@ -70,6 +70,12 @@ pub const ValidationErrorKind = enum {
     // RecursionError
     /// Selection set recursion exceeded the configured depth limit.
     RecursionError,
+    // AllVariableUsagesAllowedRule
+    /// Variable usages must be compatible with the arguments they are
+    /// passed to.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-All-Variable-Usages-Are-Allowed
+    DisallowedVariableUsage,
 };
 
 // TODO: import the validation object in the future

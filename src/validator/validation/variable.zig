@@ -137,21 +137,55 @@ pub fn validateVariableUsage(
     var_defs: []const ast.VariableDefinitionNode,
     argument: ast.ArgumentNode,
 ) !void {
-    _ = diagnostics;
-    _ = var_usage;
-    _ = var_defs;
-    _ = argument;
-    // TODO: check if argument value is a Variable
-    // TODO: find the matching VariableDefinition by name
-    // TODO: call isVariableUsageAllowed and push DisallowedVariableUsage diagnostic if not
+    const var_name = switch (argument.value) {
+        .Variable => |v| v.name.value,
+        else => return,
+    };
+
+    // Let var_def be the VariableDefinition named
+    // variable_name defined within operation.
+    const var_def = for (var_defs) |def| {
+        if (std.mem.eql(u8, def.variable.name.value, var_name)) break def;
+    } else return; // undefined variable is caught by a separate rule
+
+    if (!isVariableUsageAllowed(var_def, var_usage)) {
+        try diagnostics.push(.DisallowedVariableUsage);
+    }
 }
 
+// https://spec.graphql.org/draft/#sec-All-Variable-Usages-Are-Allowed
 fn isVariableUsageAllowed(
     variable_def: ast.VariableDefinitionNode,
     variable_usage: ast.InputValueDefinitionNode,
 ) bool {
-    _ = variable_def;
-    _ = variable_usage;
-    // TODO: implement spec rule — https://spec.graphql.org/draft/#sec-All-Variable-Usages-Are-Allowed
-    return true;
+    // 1. Let variable_ty be the expected type of variable_def.
+    const variable_ty = variable_def.type;
+    // 2. Let location_ty be the expected type of the Argument,
+    // ObjectField, or ListValue entry where variableUsage is
+    // located.
+    const location_ty = variable_usage.type;
+    // 3. if location_ty is a non-null type AND variable_ty is
+    // NOT a non-null type:
+    if (location_ty.isNonNull() and !variable_ty.isNonNull()) {
+        // 3.a. let hasNonNullVariableDefaultValue be true
+        // if a default value exists for variableDefinition
+        // and is not the value null.
+        const has_non_null_variable_default = variable_def.default_value != null;
+        // 3.b. Let hasLocationDefaultValue be true if a default
+        // value exists for the Argument or ObjectField where
+        // variableUsage is located.
+        const has_location_default = variable_usage.default_value != null;
+        // 3.c. If hasNonNullVariableDefaultValue is NOT true
+        // AND hasLocationDefaultValue is NOT true, return
+        // false.
+        if (!has_non_null_variable_default and !has_location_default) {
+            return false;
+        }
+
+        // 3.d. Let nullable_location_ty be the unwrapped
+        // nullable type of location_ty.
+        return variable_ty.isAssignableTo(location_ty.nullable());
+    }
+
+    return variable_ty.isAssignableTo(location_ty);
 }
