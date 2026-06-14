@@ -1,9 +1,9 @@
 const std = @import("std");
 const ast = @import("../graphql.zig").ast;
 pub const Schema = @import("./schema/schema.zig").Schema;
-pub const ValidationError = @import("./errors.zig").ValidationError;
-pub const ValidationErrorKind = @import("./errors.zig").ValidationErrorKind;
-pub const DiagnosticList = @import("./errors.zig").DiagnosticList;
+pub const ValidationError = @import("./errors/errors.zig").ValidationError;
+pub const ValidationErrorKind = @import("./errors/errors.zig").ValidationErrorKind;
+pub const DiagnosticList = @import("./errors/errors.zig").DiagnosticList;
 pub const ExecutableDocument = @import("./context/executable_document.zig").ExecutableDocument;
 pub const ExecutableValidationContext = @import("./context/validation_context.zig").ExecutableValidationContext;
 pub const OperationValidationContext = @import("./context/validation_context.zig").OperationValidationContext;
