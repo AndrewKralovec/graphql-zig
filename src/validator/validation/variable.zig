@@ -4,6 +4,9 @@ const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
 
+const validateDirectives = @import("./directive.zig").validateDirectives;
+const valueOfCorrectType = @import("./value.zig").valueOfCorrectType;
+
 // This has a much higher limit than comparable recursive walks, like the one in
 // `validate_fragment_cycles`, despite doing similar work. This is because this limit
 // was introduced later and should not break (reasonable) existing queries that are
@@ -11,14 +14,50 @@ const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
 const max_walk_depth = 500; // TODO: This should be configurable
 
 pub fn validateVariableDefinitions(
-    ctx: *DiagnosticList,
+    diagnostics: *DiagnosticList,
     schema: ?*const Schema,
     variable_definitions: []const ast.VariableDefinitionNode,
 ) !void {
-    _ = ctx;
-    _ = schema;
-    _ = variable_definitions;
-    // TODO: add validation logic
+    var seen = std.StringHashMap(void).init(diagnostics.allocator);
+    defer seen.deinit();
+
+    for (variable_definitions) |variable| {
+        try validateDirectives(
+            diagnostics.allocator,
+            diagnostics,
+            schema,
+            variable.directives,
+            .VariableDefinition,
+            // let's assume that variable definitions cannot reference other
+            // variables and provide them as arguments to directives
+            &[_]ast.VariableDefinitionNode{},
+        );
+
+        if (schema) |s| {
+            const ty = variable.type;
+            const type_def = s.type_definitions.get(ty.innerNamedType().name.value);
+
+            if (type_def) |td| {
+                if (td.isInputType()) {
+                    if (variable.default_value) |default| {
+                        // TODO: validate default value with valueOfCorrectType once value validation is implemented
+                        // Default values are "const", not allowed to refer to other variables:
+                        const var_defs_in_scope = [_]ast.VariableDefinitionNode{};
+                        try valueOfCorrectType(diagnostics, schema, ty, default, &var_defs_in_scope);
+                    }
+                } else {
+                    try diagnostics.push(.VariableInputType);
+                }
+            } else {
+                try diagnostics.push(.UndefinedDefinition);
+            }
+        }
+
+        const original = try seen.getOrPut(variable.variable.name.value);
+        if (original.found_existing) {
+            try diagnostics.push(.UniqueVariable);
+        }
+    }
 }
 
 const WalkError = error{RecursionLimitExceeded} || std.mem.Allocator.Error;

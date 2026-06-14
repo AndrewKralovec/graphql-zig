@@ -76,6 +76,19 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-All-Variable-Usages-Are-Allowed
     DisallowedVariableUsage,
+    // UniqueVariableNamesRule
+    /// All variables defined by an operation must be uniquely named.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Variable-Uniqueness
+    UniqueVariable,
+    // VariablesAreInputTypesRule
+    /// Variables can only be input types. Objects, Unions, and Interfaces
+    /// cannot be used as inputs.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Variables-Are-Input-Types
+    VariableInputType,
+    /// A referenced type is not defined in the schema.
+    UndefinedDefinition,
 };
 
 // TODO: import the validation object in the future
