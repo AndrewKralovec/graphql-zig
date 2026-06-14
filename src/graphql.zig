@@ -14,10 +14,8 @@ pub const validator = @import("validator/validator.zig");
 //
 
 test {
-    // Reference all declarations to ensure they compile
     std.testing.refAllDecls(@This());
 
-    // Import test suites from submodules
     _ = @import("ast/ast.zig");
     _ = @import("lexer/lexer.zig");
     _ = @import("parser/parser.zig");

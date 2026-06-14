@@ -358,6 +358,42 @@ pub const TypeNode = union(enum) {
             },
         }
     }
+
+    pub fn isNonNull(self: *const TypeNode) bool {
+        return self.* == .NonNullType;
+    }
+
+    pub fn nullable(self: *const TypeNode) *const TypeNode {
+        return switch (self.*) {
+            .NonNullType => |non_null| non_null.type,
+            else => self,
+        };
+    }
+
+    pub fn isAssignableTo(self: *const TypeNode, target: *const TypeNode) bool {
+        switch (target.*) {
+            .NonNullType => |target_nn| {
+                switch (self.*) {
+                    .NonNullType => |self_nn| return self_nn.type.isAssignableTo(target_nn.type),
+                    else => return false,
+                }
+            },
+            .ListType => |target_list| {
+                const unwrapped = self.nullable();
+                switch (unwrapped.*) {
+                    .ListType => |self_list| return self_list.type.isAssignableTo(target_list.type),
+                    else => return false,
+                }
+            },
+            .NamedType => |target_named| {
+                const unwrapped = self.nullable();
+                switch (unwrapped.*) {
+                    .NamedType => |self_named| return std.mem.eql(u8, self_named.name.value, target_named.name.value),
+                    else => return false,
+                }
+            },
+        }
+    }
 };
 
 /// See: https://spec.graphql.org/October2021/#NamedType

@@ -4,6 +4,7 @@ const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 
 const validateArguments = @import("./argument.zig").validateArguments;
+const validateVariableUsage = @import("./variable.zig").validateVariableUsage;
 
 pub fn validateDirectiveDefinition(
     diagnostics: *DiagnosticList,
@@ -33,8 +34,7 @@ pub fn validateDirectives(
     schema: ?*const Schema,
     directives: ?[]const ast.DirectiveNode,
     dir_loc: ast.DirectiveLocation,
-    // TODO: use var_defs once validateVariableUsage is wired up
-    _: []const ast.VariableDefinitionNode,
+    var_defs: []const ast.VariableDefinitionNode,
 ) !void {
     const dirs = directives orelse return;
 
@@ -84,9 +84,8 @@ pub fn validateDirectives(
                 for (args) |arg| {
                     const arg_def = findArgumentDefinition(def.arguments, arg.name.value);
                     if (arg_def) |input_value| {
-                        // TODO: validate variable usage once validateVariableUsage supported
+                        try validateVariableUsage(diagnostics, input_value, var_defs, arg);
                         // TODO: validate value type correctness once validateValues supported
-                        _ = input_value;
                     } else {
                         try diagnostics.push(.UndefinedArgument);
                     }
