@@ -29,11 +29,6 @@ pub const Validator = struct {
         self.errors.deinit();
     }
 
-    pub fn addError(self: *Validator, kind: ValidationErrorKind) !void {
-        const err = ValidationError.init(kind);
-        try self.errors.append(err);
-    }
-
     pub fn validateExecutableDocument(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
         var diagnostics = DiagnosticList.init(self.allocator);
         defer diagnostics.deinit();

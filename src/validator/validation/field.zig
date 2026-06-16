@@ -10,6 +10,9 @@ const validateDirectives = @import("./directive.zig").validateDirectives;
 const validateArguments = @import("./argument.zig").validateArguments;
 const validateVariableUsage = @import("./variable.zig").validateVariableUsage;
 const validateValues = @import("./value.zig").validateValues;
+const validateArgumentDefinitions = @import("./input.zig").validateArgumentDefinitions;
+const validateTypeSystemName = @import("../schema/validation.zig").validateTypeSystemName;
+const BuiltInScalars = @import("../schema/validation.zig").BuiltInScalars;
 const findArgumentDefinition = @import("./directive.zig").findArgumentDefinition;
 const isArgumentProvided = @import("./directive.zig").isArgumentProvided;
 
@@ -58,13 +61,13 @@ pub fn validateField(
         return;
     };
 
-    const field_def = s.typeField(at, field.name.value) orelse return;
+    const field_definition = s.typeField(at, field.name.value) orelse return;
 
     // For each provided argument, validate against the field definition.
     if (field.arguments) |args| {
         for (args) |arg| {
-            const arg_def = findArgumentDefinition(field_def.arguments, arg.name.value);
-            if (arg_def) |input_value| {
+            const arg_definition = findArgumentDefinition(field_definition.arguments, arg.name.value);
+            if (arg_definition) |input_value| {
                 if (try validateVariableUsage(
                     diagnostics,
                     input_value,
@@ -87,7 +90,7 @@ pub fn validateField(
     }
 
     // Every non-null argument without a default must be provided.
-    if (field_def.arguments) |arg_defs| {
+    if (field_definition.arguments) |arg_defs| {
         for (arg_defs) |arg_def| {
             if (arg_def.isRequiredArgument()) {
                 if (!isArgumentProvided(field.arguments, arg_def.name.value)) {
@@ -101,10 +104,10 @@ pub fn validateField(
         diagnostics,
         s,
         field,
-        field_def,
+        field_definition,
     )) {
         if (field.selection_set) |sel_set| {
-            const nested_against_type = field_def.type.innerNamedType();
+            const nested_against_type = field_definition.type.innerNamedType();
             try validateSelectionSet(
                 diagnostics,
                 exec_doc,
@@ -137,33 +140,57 @@ fn validateLeafFieldSelection(
 }
 
 pub fn validateFieldDefinition(
+    allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     schema: *const Schema,
+    builtin_scalars: *BuiltInScalars,
     field_def: ast.FieldDefinitionNode,
 ) !void {
-    _ = diagnostics;
-    _ = schema;
-    _ = field_def;
-    // TODO: validate type system name: validateTypeSystemName(diagnostics, field_def.name, "a field")
-    // TODO: validate directives at DirectiveLocation.FieldDefinition
-    // TODO: validate argument definitions: validateArgumentDefinitions(diagnostics, schema, field_def.arguments, DirectiveLocation.ArgumentDefinition)
+    try validateTypeSystemName(diagnostics, field_def.name, "a field");
+
+    try validateDirectives(
+        allocator,
+        diagnostics,
+        schema,
+        field_def.directives,
+        .FieldDefinition,
+        &[_]ast.VariableDefinitionNode{},
+    );
+
+    try validateArgumentDefinitions(
+        allocator,
+        diagnostics,
+        schema,
+        builtin_scalars,
+        field_def.arguments,
+        .ArgumentDefinition,
+    );
 }
 
 pub fn validateFieldDefinitions(
+    allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     schema: *const Schema,
+    builtin_scalars: *BuiltInScalars,
     fields: ?[]const ast.FieldDefinitionNode,
 ) !void {
     const field_list = fields orelse return;
     for (field_list) |field_def| {
-        try validateFieldDefinition(diagnostics, schema, field_def);
+        try validateFieldDefinition(allocator, diagnostics, schema, builtin_scalars, field_def);
 
-        // TODO: validate that field return type is an output type
-        // const named_type = field_def.type.innerNamedType();
-        // if (schema.type_definitions.get(named_type.name.value)) |type_def| {
-        //     if (!type_def.isOutputType()) diagnostics.push(.OutputType);
-        // } else {
-        //     diagnostics.push(.UndefinedDefinition);
-        // }
+        // Field types in Object Types must be of output type
+        const named_type = field_def.type.innerNamedType();
+        const is_built_in = builtin_scalars.recordTypeRef(schema, named_type.name.value);
+
+        if (schema.type_definitions.get(named_type.name.value)) |type_def| {
+            if (!type_def.isOutputType()) {
+                // Output types are unreachable
+                try diagnostics.push(.OutputType);
+            }
+        } else if (is_built_in) {
+            // `validate_schema()` will insert the missing definition
+        } else {
+            try diagnostics.push(.UndefinedDefinition);
+        }
     }
 }
