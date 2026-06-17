@@ -41,7 +41,6 @@ pub fn validateVariableDefinitions(
             if (type_def) |td| {
                 if (td.isInputType()) {
                     if (variable.default_value) |default| {
-                        // TODO: validate default value with valueOfCorrectType once value validation is implemented
                         // Default values are "const", not allowed to refer to other variables:
                         const var_defs_in_scope = [_]ast.VariableDefinitionNode{};
                         try valueOfCorrectType(diagnostics, schema, ty, default, &var_defs_in_scope);
