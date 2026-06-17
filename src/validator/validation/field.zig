@@ -74,7 +74,6 @@ pub fn validateField(
                     var_defs,
                     arg,
                 )) {
-                    // TODO: validateValues is currently a stub, enable once value validation is implemented
                     try validateValues(
                         diagnostics,
                         schema,

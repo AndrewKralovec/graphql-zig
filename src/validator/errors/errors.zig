@@ -121,6 +121,23 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Objects
     OutputType,
+    // ValuesOfCorrectTypeRule
+    /// A value is not compatible with the expected type.
+    /// See https://spec.graphql.org/draft/#sec-Values-of-Correct-Type
+    UnsupportedValueType,
+    /// An Int value is out of the 32-bit signed integer range.
+    IntCoercionError,
+    /// A Float value could not be coerced to f64.
+    FloatCoercionError,
+    /// An enum value is not defined in the enum type.
+    /// See https://spec.graphql.org/draft/#sec-Values-of-Correct-Type.Enum
+    UndefinedEnumValue,
+    /// A variable referenced in a value is not defined.
+    UndefinedVariable,
+    /// A required field of an input object is missing or null.
+    RequiredField,
+    /// A field provided on an input object is not defined in the type.
+    UndefinedInputValue,
 };
 
 // TODO: import the validation object in the future

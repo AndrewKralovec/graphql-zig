@@ -86,8 +86,7 @@ pub fn validateDirectives(
                     const arg_def = findArgumentDefinition(def.arguments, arg.name.value);
                     if (arg_def) |input_value| {
                         if (try validateVariableUsage(diagnostics, input_value, var_defs, arg)) {
-                            // TODO: validate value type correctness once validateValues is implemented
-                            // try validateValues(diagnostics, schema, input_value.type, arg, var_defs);
+                            try validateValues(diagnostics, schema, input_value.type, arg, var_defs);
                         }
                     } else {
                         try diagnostics.push(.UndefinedArgument);
