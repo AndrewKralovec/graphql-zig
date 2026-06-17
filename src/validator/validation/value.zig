@@ -34,6 +34,14 @@ pub fn valueOfCorrectType(
     const type_def = s.type_definitions.get(ty.innerNamedType().name.value) orelse return;
 
     switch (arg_value) {
+        // When expected as an input type, only integer input values are
+        // accepted. All other input values, including strings with numeric
+        // content, must raise a request error indicating an incorrect
+        // type. If the integer input value represents a value less than
+        // -2^31 or greater than or equal to 2^31, a request error should be
+        // raised.
+        // When expected as an input type, any string (such as "4") or
+        // integer (such as 4 or -4) input value should be coerced to ID
         .Int => |int_val| {
             switch (type_def) {
                 .ScalarTypeDefinition => |scalar_def| {
@@ -59,9 +67,14 @@ pub fn valueOfCorrectType(
                 else => try diagnostics.push(.UnsupportedValueType),
             }
         },
+        // When expected as an input type, both integer and float input
+        // values are accepted. All other input values, including strings
+        // with numeric content, must raise a request error indicating an
+        // incorrect type.
         .Float => |float_val| {
             switch (type_def) {
                 .ScalarTypeDefinition => |scalar_def| {
+                    // Any value is valid for a custom scalar.
                     if (!isBuiltInScalar(scalar_def.name.value)) return;
                     if (std.mem.eql(u8, scalar_def.name.value, "Float")) {
                         _ = std.fmt.parseFloat(f64, float_val.value) catch {
@@ -75,9 +88,18 @@ pub fn valueOfCorrectType(
                 else => try diagnostics.push(.UnsupportedValueType),
             }
         },
+        // When expected as an input type, only valid Unicode string input
+        // values are accepted. All other input values must raise a request
+        // error indicating an incorrect type.
+        // When expected as an input type, any string (such as "4") or
+        // integer (such as 4 or -4) input value should be coerced to ID
         .String => {
             switch (type_def) {
                 .ScalarTypeDefinition => |scalar_def| {
+                    // specifically return diagnostics for ints, floats, and
+                    // booleans.
+                    // string, ids and custom scalars are ok, and
+                    // don't need a diagnostic.
                     if (!isBuiltInScalar(scalar_def.name.value)) return;
                     const name = scalar_def.name.value;
                     if (std.mem.eql(u8, name, "String") or std.mem.eql(u8, name, "ID")) return;
@@ -86,6 +108,9 @@ pub fn valueOfCorrectType(
                 else => try diagnostics.push(.UnsupportedValueType),
             }
         },
+        // When expected as an input type, only boolean input values are
+        // accepted. All other input values must raise a request error
+        // indicating an incorrect type.
         .Boolean => {
             switch (type_def) {
                 .ScalarTypeDefinition => |scalar_def| {
@@ -112,6 +137,8 @@ pub fn valueOfCorrectType(
             };
             switch (type_def) {
                 .ScalarTypeDefinition, .EnumTypeDefinition, .InputObjectTypeDefinition => {
+                    // we don't have the actual variable values here, so just
+                    // compare if two Types are the same
                     // TODO: This should use the is_assignable_to check
                     if (!std.mem.eql(u8, var_def.type.innerNamedType().name.value, type_name)) {
                         try diagnostics.push(.UnsupportedValueType);
@@ -139,6 +166,14 @@ pub fn valueOfCorrectType(
                 else => try diagnostics.push(.UnsupportedValueType),
             }
         },
+        // When expected as an input, list values are accepted only when
+        // each item in the list can be accepted by the list’s item type.
+        //
+        // If the value passed as an input to a list type is not a list and
+        // not the null value, then the result of input coercion is a list
+        // of size one, where the single item value is the result of input
+        // coercion for the list’s item type on the provided value (note
+        // this may apply recursively for nested lists).
         .List => |list_val| {
             const nullable_ty = ty.nullable();
             switch (nullable_ty.*) {
@@ -174,6 +209,8 @@ pub fn valueOfCorrectType(
                 .InputObjectTypeDefinition => |input_def| {
                     const input_fields = input_def.fields orelse &[_]ast.InputValueDefinitionNode{};
 
+                    // Add a diagnostic if a value does not exist on the input
+                    // object type
                     for (obj_val.fields) |provided_field| {
                         if (findInputField(input_fields, provided_field.name.value) == null) {
                             try diagnostics.push(.UndefinedInputValue);
@@ -186,6 +223,10 @@ pub fn valueOfCorrectType(
                         const is_missing = !isFieldProvided(obj_val.fields, field_name);
                         const is_null = isFieldNull(obj_val.fields, field_name);
 
+                        // If the input object field type is non_null, and no
+                        // default value is provided, or if the value provided
+                        // is null or missing entirely, an error should be
+                        // raised.
                         if (field_def.type.isNonNull() and field_def.default_value == null and (is_missing or is_null)) {
                             try diagnostics.push(.RequiredField);
                         }
