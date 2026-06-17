@@ -139,8 +139,6 @@ pub const ValidationError = struct {
 };
 
 pub const DiagnosticList = struct {
-    // TODO: We use this allocator for non error reasons.
-    // which is convenient, but not proper use.
     allocator: Allocator,
     errors: std.ArrayList(ValidationError),
 

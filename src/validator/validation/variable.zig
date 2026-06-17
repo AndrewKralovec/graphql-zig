@@ -14,16 +14,17 @@ const valueOfCorrectType = @import("./value.zig").valueOfCorrectType;
 const max_walk_depth = 500; // TODO: This should be configurable
 
 pub fn validateVariableDefinitions(
+    allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     schema: ?*const Schema,
     variable_definitions: []const ast.VariableDefinitionNode,
 ) !void {
-    var seen = std.StringHashMap(void).init(diagnostics.allocator);
+    var seen = std.StringHashMap(void).init(allocator);
     defer seen.deinit();
 
     for (variable_definitions) |variable| {
         try validateDirectives(
-            diagnostics.allocator,
+            allocator,
             diagnostics,
             schema,
             variable.directives,
@@ -131,6 +132,7 @@ fn variablesInDirectives(directives: ?[]const ast.DirectiveNode, unused_vars: *s
 }
 
 pub fn validateUnusedVariables(
+    allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     exec_doc: *const ExecutableDocument,
     operation: ast.OperationDefinitionNode,
@@ -139,7 +141,7 @@ pub fn validateUnusedVariables(
     if (var_defs.len == 0) return;
 
     // Start off by considering all variables unused: names are removed from this as we find them.
-    var unused_vars = std.StringHashMap(void).init(diagnostics.allocator);
+    var unused_vars = std.StringHashMap(void).init(allocator);
     defer unused_vars.deinit();
 
     for (var_defs) |var_def| {
@@ -150,7 +152,7 @@ pub fn validateUnusedVariables(
     variablesInDirectives(operation.directives, &unused_vars);
 
     if (operation.selection_set) |sel_set| {
-        var seen_fragments = std.StringHashMap(void).init(diagnostics.allocator);
+        var seen_fragments = std.StringHashMap(void).init(allocator);
         defer seen_fragments.deinit();
 
         walkSelectionsWithDedupedFragments(

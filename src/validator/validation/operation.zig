@@ -45,12 +45,18 @@ pub fn validateOperation(
     );
     if (operation.variable_definitions) |var_defs| {
         try validateVariableDefinitions(
+            context.allocator,
             diagnostics,
             context.schema(),
             var_defs,
         );
     }
-    try validateUnusedVariables(diagnostics, exec_doc, operation);
+    try validateUnusedVariables(
+        context.allocator,
+        diagnostics,
+        exec_doc,
+        operation,
+    );
     if (operation.selection_set) |sel_set| {
         var op_context = context.operationContext(operation.variable_definitions);
         defer op_context.deinit();
