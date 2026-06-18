@@ -76,7 +76,7 @@ pub fn validateField(
                 )) {
                     try validateValues(
                         diagnostics,
-                        schema,
+                        s,
                         input_value.type,
                         arg,
                         var_defs,
