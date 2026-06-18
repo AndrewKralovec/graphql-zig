@@ -40,6 +40,10 @@ pub const Validator = struct {
         defer exec_doc.deinit();
 
         try validateOperationDefinitions(&diagnostics, &exec_doc, &context);
+
+        // TODO: validateFragmentCycles
+        // TODO: validateFragmentsUsed
+
         return diagnostics.toOwnedSlice();
     }
 };

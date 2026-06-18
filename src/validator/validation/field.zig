@@ -61,6 +61,9 @@ pub fn validateField(
         return;
     };
 
+    // TODO: push UndefinedField error when field doesn't exist on the type
+    // need to add UndefinedField to ValidationErrorKind
+    // and also handle __typename, __type, __schema introspection fields which are always valid
     const field_definition = s.typeField(at, field.name.value) orelse return;
 
     // For each provided argument, validate against the field definition.
@@ -135,6 +138,8 @@ fn validateLeafFieldSelection(
         return false;
     }
 
+    // TODO: check the inverse. sub-selections on leaf types (scalars/enums)
+    // should produce an error (Leaf-Field-Selections)
     return true;
 }
 

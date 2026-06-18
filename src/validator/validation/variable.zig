@@ -190,7 +190,7 @@ pub fn validateVariableUsage(
     // variable_name defined within operation.
     const var_def = for (var_defs) |def| {
         if (std.mem.eql(u8, def.variable.name.value, var_name)) break def;
-    } else return true; // undefined variable is caught by a separate rule
+    } else return true; // If the variable is not defined, we raise an error in `value.zig`
 
     if (!isVariableUsageAllowed(var_def, var_usage)) {
         try diagnostics.push(.DisallowedVariableUsage);
