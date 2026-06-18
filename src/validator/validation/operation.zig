@@ -19,6 +19,7 @@ pub fn validateSubscription(
 ) !void {
     _ = ctx;
     // TODO: add validation logic
+    // Wire this into validateOperation when operation.operation == .Subscription
 }
 
 pub fn validateOperation(

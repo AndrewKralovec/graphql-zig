@@ -31,6 +31,10 @@ pub fn validateInlineFragment(
     inline_fragment: ast.InlineFragmentNode,
     context: *OperationValidationContext,
 ) std.mem.Allocator.Error!void {
+    // TODO: validate directives on inline fragment at InlineFragment location
+    // TODO: validate type condition exists in schema and is a composite type
+    // TODO: validate type applicability,inline spread's type condition must
+
     const fragment_against_type: ?ast.NamedTypeNode = if (inline_fragment.type_condition) |type_cond|
         type_cond
     else
@@ -46,6 +50,9 @@ pub fn validateFragmentSpread(
     spread: ast.FragmentSpreadNode,
     context: *OperationValidationContext,
 ) std.mem.Allocator.Error!void {
+    // TODO: validate directives on fragment spread at FragmentSpread location
+    // TODO: push UndefinedFragment error when fragment name not found
+    // TODO: validate type applicability, spread's type condition must overlap
     _ = against_type;
     const frag_def = exec_doc.getFragment(spread.name.value) orelse return;
     const gop = try context.validated_fragments.getOrPut(spread.name.value);
@@ -63,6 +70,8 @@ pub fn validateFragmentDefinition(
     context: *OperationValidationContext,
 ) std.mem.Allocator.Error!void {
     _ = against_type;
+    // TODO: validate directives on fragment definition at FragmentDefinition location
+    // TODO: validate type condition exists in schema and is a composite type
 
     const fragment_against_type: ?ast.NamedTypeNode = fragment.type_condition;
     try validateSelectionSet(diagnostics, exec_doc, fragment_against_type, fragment.selection_set, context);

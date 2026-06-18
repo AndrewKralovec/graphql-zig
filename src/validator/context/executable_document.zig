@@ -43,6 +43,8 @@ pub const ExecutableDocument = struct {
                             } else {
                                 try diagnostics.push(.LoneAnonymousOperation);
                             }
+                            // TODO: also push LoneAnonymousOperation when anonymous op
+                            // coexists with named ops
                         }
                     },
                     .FragmentDefinition => |frag| {
@@ -50,8 +52,10 @@ pub const ExecutableDocument = struct {
                         if (!result.found_existing) {
                             result.value_ptr.* = frag;
                         }
+                        // TODO: push UniqueFragment error on duplicates
                     },
                 },
+                // TODO: push NonExecutableDefinition error for type system definitions
                 .TypeSystemDefinition, .TypeSystemExtension => {},
             }
         }

@@ -3,6 +3,7 @@ const ast = @import("../../graphql.zig").ast;
 const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 
+// TODO: remove or wire up.
 fn unsupported_type(
     diagnostics: *DiagnosticList,
     value: *ast.ValueNode,
