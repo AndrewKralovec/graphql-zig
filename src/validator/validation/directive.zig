@@ -73,7 +73,7 @@ pub fn validateDirectives(
             try seen_directives.put(name, true);
         }
 
-        _ = schema orelse return;
+        const s = schema orelse return;
         if (directive_definition) |def| {
             // check the directive is allowed at this location.
             if (!isLocationAllowed(def.locations, dir_loc)) {
@@ -86,7 +86,7 @@ pub fn validateDirectives(
                     const arg_def = findArgumentDefinition(def.arguments, arg.name.value);
                     if (arg_def) |input_value| {
                         if (try validateVariableUsage(diagnostics, input_value, var_defs, arg)) {
-                            try validateValues(diagnostics, schema, input_value.type, arg, var_defs);
+                            try validateValues(diagnostics, s, input_value.type, arg, var_defs);
                         }
                     } else {
                         try diagnostics.push(.UndefinedArgument);

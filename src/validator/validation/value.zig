@@ -15,7 +15,7 @@ fn unsupported_type(
 
 pub fn validateValues(
     diagnostics: *DiagnosticList,
-    schema: ?*const Schema,
+    schema: *const Schema,
     ty: *ast.TypeNode,
     argument: ast.ArgumentNode,
     var_defs: []const ast.VariableDefinitionNode,
@@ -25,13 +25,12 @@ pub fn validateValues(
 
 pub fn valueOfCorrectType(
     diagnostics: *DiagnosticList,
-    schema: ?*const Schema,
+    schema: *const Schema,
     ty: *ast.TypeNode,
     arg_value: ast.ValueNode,
     var_defs: []const ast.VariableDefinitionNode,
 ) !void {
-    const s = schema orelse return;
-    const type_def = s.type_definitions.get(ty.innerNamedType().name.value) orelse return;
+    const type_def = schema.type_definitions.get(ty.innerNamedType().name.value) orelse return;
 
     switch (arg_value) {
         // When expected as an input type, only integer input values are
@@ -189,8 +188,13 @@ pub fn valueOfCorrectType(
                 .NamedType => {
                     switch (type_def) {
                         .ScalarTypeDefinition => |scalar_def| {
-                            if (!isBuiltInScalar(scalar_def.name.value)) return;
-                            try diagnostics.push(.UnsupportedValueType);
+                            if (isBuiltInScalar(scalar_def.name.value)) {
+                                try diagnostics.push(.UnsupportedValueType);
+                            } else {
+                                for (list_val.values) |item| {
+                                    try valueOfCorrectType(diagnostics, schema, ty, item, var_defs);
+                                }
+                            }
                         },
                         else => try diagnostics.push(.UnsupportedValueType),
                     }
