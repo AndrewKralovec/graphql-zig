@@ -45,4 +45,19 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     const run_tests = b.addRunArtifact(tests);
     test_step.dependOn(&run_tests.step);
+
+    // always compiled ReleaseFast for bench results
+    const bench_exe = b.addExecutable(.{
+        .name = "bench",
+        .root_source_file = b.path("bench/bench.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    bench_exe.root_module.addImport("graphql", module);
+
+    const run_bench = b.addRunArtifact(bench_exe);
+    if (b.args) |args| run_bench.addArgs(args);
+
+    const bench_step = b.step("bench", "Run parser/lexer benchmarks");
+    bench_step.dependOn(&run_bench.step);
 }

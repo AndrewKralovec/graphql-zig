@@ -8,6 +8,7 @@ After reading that [bun](https://bun.sh/) was coded in zig, i wanted to try it o
 - [Usage](#usage)
     - [Lexer](#lexer) for tokenization.
     - [Parser](#parser) for building an abstract syntax tree (AST).
+- [Benchmarks](#benchmarks)
 - [TODO](#todo)
 - [Inspiration And Resources](#inspiration-and-resources)
 
@@ -196,6 +197,16 @@ var parser = Parser.init(allocator, source, .{ .limit = 100 }); // Only process 
 const doc = try parser.parse();
 // Will throw LimitReached error if we hit the limit.
 ```
+
+## Benchmarks
+
+To run the benchmarks
+
+```bash
+zig build bench
+```
+
+The benchmark suite is always compiled with `ReleaseFast` regardless of any `-Doptimize` flag.
 
 ## TODO
 

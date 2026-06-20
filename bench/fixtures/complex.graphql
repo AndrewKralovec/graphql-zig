@@ -1,0 +1,68 @@
+query SearchContent($query: String!, $filters: SearchFilters, $page: Int = 1) @deprecated {
+  search(query: $query, filters: $filters, page: $page) {
+    totalCount
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    edges {
+      cursor
+      node {
+        ... on Article {
+          id
+          title
+          slug
+          publishedAt
+          author {
+            id
+            name
+            avatar
+          }
+          tags {
+            id
+            name
+          }
+        }
+        ... on Video {
+          id
+          title
+          duration
+          thumbnailUrl
+          channel {
+            id
+            name
+            subscriberCount
+          }
+        }
+        ... on Podcast {
+          id
+          title
+          episodeNumber
+          showNotes
+        }
+      }
+    }
+  }
+}
+
+mutation CreateArticle($input: ArticleInput!) {
+  createArticle(input: $input) {
+    id
+    title
+    slug
+    status
+  }
+}
+
+subscription OnArticlePublished($authorId: ID) {
+  articlePublished(authorId: $authorId) {
+    id
+    title
+    author {
+      id
+      name
+    }
+  }
+}

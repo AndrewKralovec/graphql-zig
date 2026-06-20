@@ -1,0 +1,23 @@
+query GetUserPosts($userId: ID!, $first: Int = 10) {
+  user(id: $userId) {
+    id
+    name
+    email
+    posts(first: $first) {
+      id
+      title
+      createdAt
+      author {
+        id
+        name
+      }
+      tags
+    }
+  }
+}
+
+fragment UserFields on User {
+  id
+  name
+  email
+}

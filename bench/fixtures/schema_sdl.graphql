@@ -1,0 +1,115 @@
+"""A node with a globally unique identifier."""
+interface Node {
+  id: ID!
+}
+
+"""A paginated list of items."""
+interface Connection {
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+enum UserRole {
+  ADMIN
+  MODERATOR
+  USER
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+"""Represents a user account."""
+type User implements Node {
+  id: ID!
+  name: String!
+  email: String!
+  role: UserRole!
+  posts(first: Int, after: String): PostConnection!
+  followers(first: Int, after: String): UserConnection!
+  createdAt: String!
+}
+
+type UserConnection implements Connection {
+  pageInfo: PageInfo!
+  totalCount: Int!
+  edges: [UserEdge!]!
+}
+
+type UserEdge {
+  cursor: String!
+  node: User!
+}
+
+type Post implements Node {
+  id: ID!
+  title: String!
+  body: String!
+  status: ContentStatus!
+  author: User!
+  tags: [String!]!
+  publishedAt: String
+  createdAt: String!
+}
+
+type PostConnection implements Connection {
+  pageInfo: PageInfo!
+  totalCount: Int!
+  edges: [PostEdge!]!
+}
+
+type PostEdge {
+  cursor: String!
+  node: Post!
+}
+
+input CreateUserInput {
+  name: String!
+  email: String!
+  password: String!
+  role: UserRole = USER
+}
+
+input CreatePostInput {
+  title: String!
+  body: String!
+  tags: [String!]
+  status: ContentStatus = DRAFT
+}
+
+type Query {
+  node(id: ID!): Node
+  user(id: ID!): User
+  users(first: Int, after: String, role: UserRole): UserConnection!
+  post(id: ID!): Post
+  posts(first: Int, after: String, status: ContentStatus): PostConnection!
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): User!
+  updateUser(id: ID!, input: CreateUserInput!): User!
+  deleteUser(id: ID!): Boolean!
+  createPost(input: CreatePostInput!): Post!
+  publishPost(id: ID!): Post!
+  deletePost(id: ID!): Boolean!
+}
+
+type Subscription {
+  userCreated: User!
+  postPublished(authorId: ID): Post!
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
