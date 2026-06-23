@@ -138,6 +138,22 @@ pub const ValidationErrorKind = enum {
     RequiredField,
     /// A field provided on an input object is not defined in the type.
     UndefinedInputValue,
+    // FragmentsOnCompositeTypesRule
+    /// Fragment's type condition is not a composite type.
+    ///
+    /// Fragments can only be defined on Object, Interface, or Union types.
+    /// A fragment on a scalar, enum, or input type is invalid.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Fragments-On-Composite-Types
+    InvalidFragmentTarget,
+    // PossibleFragmentSpreadsRule
+    /// Fragment spread is not possible against parent type.
+    ///
+    /// The concrete object types of the fragment's type condition and the
+    /// parent type must have at least one type in common.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Fragment-spread-is-possible
+    InvalidFragmentSpread,
 };
 
 // TODO: import the validation object in the future
