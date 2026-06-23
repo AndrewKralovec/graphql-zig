@@ -154,6 +154,10 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Fragment-spread-is-possible
     InvalidFragmentSpread,
+    /// The referenced fragment is not defined in the document.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Fragment-spread-target-defined
+    UndefinedFragment,
 };
 
 // TODO: import the validation object in the future
