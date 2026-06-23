@@ -12,7 +12,6 @@ pub const validateOperationDefinitions = @import("validation/operation.zig").val
 pub const Validator = struct {
     allocator: std.mem.Allocator,
     schema: *const Schema,
-    errors: std.ArrayList(ValidationError),
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -21,12 +20,11 @@ pub const Validator = struct {
         return Validator{
             .allocator = allocator,
             .schema = schema,
-            .errors = std.ArrayList(ValidationError).init(allocator),
         };
     }
 
     pub fn deinit(self: *Validator) void {
-        self.errors.deinit();
+        _ = self;
     }
 
     pub fn validateExecutableDocument(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
