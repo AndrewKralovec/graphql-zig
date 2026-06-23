@@ -169,16 +169,38 @@ pub fn validateFragmentSpread(
     spread: ast.FragmentSpreadNode,
     context: *OperationValidationContext,
 ) std.mem.Allocator.Error!void {
-    // TODO: validate directives on fragment spread at FragmentSpread location
-    // TODO: push UndefinedFragment error when fragment name not found
-    // TODO: validate type applicability, spread's type condition must overlap
-    _ = against_type;
-    const frag_def = exec_doc.getFragment(spread.name.value) orelse return;
+    const schema = context.schema();
+    const variables = context.variables orelse &[_]ast.VariableDefinitionNode{};
+    try validateDirectives(
+        context.allocator,
+        diagnostics,
+        schema,
+        spread.directives,
+        .FragmentSpread,
+        variables,
+    );
+
+    const frag_def = exec_doc.getFragment(spread.name.value) orelse {
+        try diagnostics.push(.UndefinedFragment);
+        return;
+    };
+
+    if (schema) |s| {
+        if (against_type) |parent| {
+            try validateFragmentSpreadType(
+                context.allocator,
+                diagnostics,
+                s,
+                parent,
+                frag_def.type_condition,
+            );
+        }
+    }
+
     const gop = try context.validated_fragments.getOrPut(spread.name.value);
     if (gop.found_existing) return;
 
-    const fragment_against_type: ?ast.NamedTypeNode = frag_def.type_condition;
-    try validateSelectionSet(diagnostics, exec_doc, fragment_against_type, frag_def.selection_set, context);
+    try validateFragmentDefinition(diagnostics, exec_doc, against_type, frag_def, context);
 }
 
 pub fn validateFragmentDefinition(
@@ -189,14 +211,38 @@ pub fn validateFragmentDefinition(
     context: *OperationValidationContext,
 ) std.mem.Allocator.Error!void {
     _ = against_type;
-    // TODO: validate directives on fragment definition at FragmentDefinition location
-    // TODO: validate type condition exists in schema and is a composite type
 
-    const fragment_against_type: ?ast.NamedTypeNode = fragment.type_condition;
-    try validateSelectionSet(diagnostics, exec_doc, fragment_against_type, fragment.selection_set, context);
+    const schema = context.schema();
+    const variables = context.variables orelse &[_]ast.VariableDefinitionNode{};
+    try validateDirectives(
+        context.allocator,
+        diagnostics,
+        schema,
+        fragment.directives,
+        .FragmentDefinition,
+        variables,
+    );
+
+    const previous = diagnostics.len();
+    if (schema) |s| {
+        try validateFragmentTypeCondition(diagnostics, s, fragment.type_condition);
+    }
+    const has_type_error = diagnostics.len() > previous;
+
+    // TODO: when validateFragmentCycles is implemented, gate selection set
+    // validation on both !has_type_error and !has_cycles
+    validateFragmentCycles();
+
+    if (!has_type_error) {
+        const fragment_against_type: ?ast.NamedTypeNode = fragment.type_condition;
+        try validateSelectionSet(diagnostics, exec_doc, fragment_against_type, fragment.selection_set, context);
+    }
 }
 
 // TODO: implement fragment cycle detection
+// Should accept (diagnostics, exec_doc, fragment) and detect when a fragment
+// directly or transitively spreads itself. Push RecursiveFragmentDefinition error.
+// See: https://spec.graphql.org/draft/#sec-Fragment-spreads-must-not-form-cycles
 fn validateFragmentCycles() void {}
 
 fn validateFragmentTypeCondition(
