@@ -7,8 +7,11 @@ pub fn validateSchema(diagnostics: *DiagnosticList, schema: *const Schema) !void
     var builtin_scalars = BuiltInScalars.init(diagnostics.allocator); // TODO: pass allocator.
     defer builtin_scalars.deinit();
 
+    // TODO: iterate schema.type_definitions and for each entry
+    //   1. Call validateTypeSystemName(diagnostics, name, def.describe()) to check for __ prefix
+    //   2. Dispatch to the type-specific validator based on the TypeDefinitionNode tag
+    // TODO: validate directive definitions (validateDirectiveDefinitions)
     _ = schema;
-    // TODO: add validation logic
 }
 
 /// Validate type system names according to GraphQL spec

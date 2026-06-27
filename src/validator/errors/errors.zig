@@ -135,6 +135,12 @@ pub const ValidationErrorKind = enum {
     /// An enum type must define one or more unique enum values.
     /// See https://spec.graphql.org/draft/#sel-DAHfFVFBAAEXBAAh7S
     EmptyValueSet,
+    /// An object type or interface type must define one or more fields.
+    /// See https://spec.graphql.org/draft/#sel-FAHZhCFDBAACDA4qe
+    EmptyFieldSet,
+    /// An object type implementing an interface is missing a required field from that interface.
+    /// See https://spec.graphql.org/draft/#sel-FAHbhCFNFAAhC3Xbb
+    MissingInterfaceField,
     /// A variable referenced in a value is not defined.
     UndefinedVariable,
     /// A required field of an input object is missing or null.
