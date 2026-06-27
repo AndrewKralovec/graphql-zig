@@ -132,6 +132,9 @@ pub const ValidationErrorKind = enum {
     /// An enum value is not defined in the enum type.
     /// See https://spec.graphql.org/draft/#sec-Values-of-Correct-Type.Enum
     UndefinedEnumValue,
+    /// An enum type must define one or more unique enum values.
+    /// See https://spec.graphql.org/draft/#sel-DAHfFVFBAAEXBAAh7S
+    EmptyValueSet,
     /// A variable referenced in a value is not defined.
     UndefinedVariable,
     /// A required field of an input object is missing or null.
