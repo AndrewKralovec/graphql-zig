@@ -167,6 +167,34 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Fragment-spread-target-defined
     UndefinedFragment,
+    /// An interface type declares itself in its implements list.
+    ///
+    /// See https://spec.graphql.org/draft/#sel-HAHdnBFBABABxB4V
+    RecursiveInterfaceDefinition,
+    /// A type implements interface B, and B implements interface A, but the type
+    /// does not also declare that it implements A.
+    ///
+    /// See https://spec.graphql.org/draft/#sel-HAHhpJFCAACCBl1g
+    TransitiveImplementedInterfaces,
+    /// An implementing field's return type is not a valid subtype of the
+    /// corresponding interface field's return type.
+    ///
+    /// See https://spec.graphql.org/draft/#IsValidImplementationFieldType()
+    InvalidImplementationFieldType,
+    /// An implementing field is missing an argument that the interface field declares.
+    ///
+    /// See https://spec.graphql.org/draft/#IsValidImplementation()
+    MissingInterfaceFieldArgument,
+    /// An implementing field has an argument whose type does not exactly match the
+    /// type of the same-named argument on the interface field.
+    ///
+    /// See https://spec.graphql.org/draft/#IsValidImplementation()
+    InvalidImplementationFieldArgumentType,
+    /// An implementing field adds a required argument (non-null without a default)
+    /// that is not present on the interface field.
+    ///
+    /// See https://spec.graphql.org/draft/#IsValidImplementation()
+    ExtraRequiredImplementationFieldArgument,
 };
 
 // TODO: import the validation object in the future

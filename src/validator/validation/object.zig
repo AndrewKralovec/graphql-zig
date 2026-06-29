@@ -39,8 +39,13 @@ pub fn validateObjectTypeDefinition(
     }
 
     // Implements Interfaces validation.
-    try validateImplementsInterfaces(allocator, diagnostics, schema, obj);
-
+    try validateImplementsInterfaces(
+        allocator,
+        diagnostics,
+        schema,
+        obj.name.value,
+        obj.interfaces,
+    );
     // When defining an interface that implements another interface, the
     // implementing interface must define each field that is specified by
     // the implemented interface.
@@ -50,11 +55,25 @@ pub fn validateObjectTypeDefinition(
 
     // Validate that fields in the implementing type have return types that are
     // proper subtypes of the interface fields.
-    try validateImplementationFieldTypes(allocator, diagnostics, schema, obj);
+    try validateImplementationFieldTypes(
+        allocator,
+        diagnostics,
+        schema,
+        obj.name.value,
+        obj.fields,
+        obj.interfaces,
+    );
 
     // Validate that fields in the implementing type have matching arguments
     // per the IsValidImplementation rule.
-    try validateImplementationFieldArguments(allocator, diagnostics, schema, obj);
+    try validateImplementationFieldArguments(
+        allocator,
+        diagnostics,
+        schema,
+        obj.name.value,
+        obj.fields,
+        obj.interfaces,
+    );
 }
 
 /// Checks that for every interface this object implements, each interface field has a
