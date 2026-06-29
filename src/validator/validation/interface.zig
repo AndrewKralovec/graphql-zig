@@ -6,6 +6,7 @@ const validateDirectives = @import("./directive.zig").validateDirectives;
 const validateFieldDefinitions = @import("./field.zig").validateFieldDefinitions;
 const BuiltInScalars = @import("../schema/validation.zig").BuiltInScalars;
 
+// TODO: validateInterfaceDefinition is not yet called. Wire it up in validateSchema() once the type-definition dispatch loop is implemented.
 pub fn validateInterfaceDefinition(
     allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
@@ -38,6 +39,7 @@ pub fn validateInterfaceDefinition(
     //   name: String
     // }
     // NOTE: cyclic references between two or more interfaces are not yet caught here.
+    // TODO: also detect multi interface cycles (e.g. Node implements Named, Named implements Node).
     if (iface_def.interfaces) |interfaces| {
         for (interfaces) |iface_ref| {
             if (std.mem.eql(u8, iface_ref.name.value, iface_def.name.value)) {
@@ -103,6 +105,7 @@ pub fn validateImplementsInterfaces(
     implements_interfaces: ?[]const ast.NamedTypeNode,
 ) !void {
     _ = allocator;
+    // TODO: include implementor_name, interface name, field name, and argument name in the diagnostic
     _ = implementor_name;
     const interfaces = implements_interfaces orelse return;
 
@@ -228,6 +231,7 @@ pub fn validateImplementationFieldTypes(
     implements_interfaces: ?[]const ast.NamedTypeNode,
 ) !void {
     _ = allocator;
+    // TODO: include implementor_name, interface name, field name, and argument name in the diagnostic
     _ = implementor_name;
     const interfaces = implements_interfaces orelse return;
     const impl_fields = implementor_fields orelse return;
@@ -266,6 +270,7 @@ pub fn validateImplementationFieldArguments(
     implements_interfaces: ?[]const ast.NamedTypeNode,
 ) !void {
     _ = allocator;
+    // TODO: include implementor_name, interface name, field name, and argument name in the diagnostic
     _ = implementor_name;
     const interfaces = implements_interfaces orelse return;
     const impl_fields = implementor_fields orelse return;
