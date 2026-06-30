@@ -3,7 +3,6 @@ const ast = @import("../../graphql.zig").ast;
 const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 const validateDirectives = @import("./directive.zig").validateDirectives;
-const validateTypeSystemName = @import("../schema/validation.zig").validateTypeSystemName;
 
 pub fn validateEnumDefinition(
     allocator: std.mem.Allocator,
@@ -11,8 +10,6 @@ pub fn validateEnumDefinition(
     schema: *const Schema,
     enum_def: ast.EnumTypeDefinitionNode,
 ) !void {
-    try validateTypeSystemName(diagnostics, enum_def.name, "an enum type");
-
     try validateDirectives(
         allocator,
         diagnostics,
@@ -22,20 +19,15 @@ pub fn validateEnumDefinition(
         &[_]ast.VariableDefinitionNode{},
     );
 
-    // validate there is at least one enum value on the enum type
-    // https://spec.graphql.org/draft/#sel-DAHfFVFBAAEXBAAh7S
-    const values = enum_def.values orelse {
-        try diagnostics.push(.EmptyValueSet);
-        return;
-    };
-
-    if (values.len == 0) {
-        try diagnostics.push(.EmptyValueSet);
-        return;
-    }
-
+    const values = enum_def.values orelse &[_]ast.EnumValueDefinitionNode{};
     for (values) |enum_val| {
         try validateEnumValue(allocator, diagnostics, schema, enum_val);
+    }
+
+    // validate there is at least one enum value on the enum type
+    // https://spec.graphql.org/draft/#sel-DAHfFVFBAAEXBAAh7S
+    if (values.len == 0) {
+        try diagnostics.push(.EmptyValueSet);
     }
 }
 
@@ -45,11 +37,9 @@ fn validateEnumValue(
     schema: *const Schema,
     enum_val: ast.EnumValueDefinitionNode,
 ) !void {
-    try validateTypeSystemName(
-        diagnostics,
-        enum_val.name,
-        "an enum value",
-    );
+    // TODO: validateTypeSystemName(diagnostics, enum_val.name, "an enum value")
+    // Validates the __ reserved name prefix per the GraphQL spec.
+    // https://spec.graphql.org/draft/#sec-Names.Reserved-Names
 
     try validateDirectives(
         allocator,
