@@ -138,6 +138,13 @@ pub const ValidationErrorKind = enum {
     /// An object type or interface type must define one or more fields.
     /// See https://spec.graphql.org/draft/#sel-FAHZhCFDBAACDA4qe
     EmptyFieldSet,
+    /// A union type must define one or more unique member types.
+    /// See https://spec.graphql.org/draft/#sel-HAHdfFBABAB6Bw3R
+    EmptyMemberSet,
+    /// A union member type must be an Object type.
+    /// Scalars, enums, interfaces, input objects, and other unions are not allowed.
+    /// See https://spec.graphql.org/draft/#sec-Unions
+    UnionMemberObjectType,
     /// An object type implementing an interface is missing a required field from that interface.
     /// See https://spec.graphql.org/draft/#sel-FAHbhCFNFAAhC3Xbb
     MissingInterfaceField,
