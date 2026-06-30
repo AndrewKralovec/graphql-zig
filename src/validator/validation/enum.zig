@@ -3,6 +3,7 @@ const ast = @import("../../graphql.zig").ast;
 const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 const validateDirectives = @import("./directive.zig").validateDirectives;
+const validateTypeSystemName = @import("../schema/validation.zig").validateTypeSystemName;
 
 pub fn validateEnumDefinition(
     allocator: std.mem.Allocator,
@@ -37,10 +38,11 @@ fn validateEnumValue(
     schema: *const Schema,
     enum_val: ast.EnumValueDefinitionNode,
 ) !void {
-    // TODO: validateTypeSystemName(diagnostics, enum_val.name, "an enum value")
-    // Validates the __ reserved name prefix per the GraphQL spec.
-    // https://spec.graphql.org/draft/#sec-Names.Reserved-Names
-
+    try validateTypeSystemName(
+        diagnostics,
+        enum_val.name,
+        "an enum value",
+    );
     try validateDirectives(
         allocator,
         diagnostics,
