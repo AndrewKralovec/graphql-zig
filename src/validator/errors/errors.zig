@@ -202,6 +202,23 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#IsValidImplementation()
     ExtraRequiredImplementationFieldArgument,
+    /// An input object has no fields defined.
+    /// See https://spec.graphql.org/draft/#sel-HAHhBXDBABAB5BvgD
+    EmptyInputValueSet,
+    /// An input object type contains a circular reference through NonNull fields.
+    /// See https://spec.graphql.org/October2021/#sec-Input-Objects.Circular-References
+    RecursiveInputObjectDefinition,
+    /// An input object (or other type) nests too deeply for the validator to check.
+    /// Triggered when the cycle-detection depth limit (32) is reached.
+    /// See https://spec.graphql.org/October2021/#sec-Input-Objects.Circular-References
+    DeeplyNestedType,
+    /// An argument or input field references a type that is not an input type.
+    /// Input positions only accept Scalar, Enum, or InputObject types.
+    /// See https://spec.graphql.org/draft/#sec-Input-and-Output-Types
+    InputType,
+    /// Duplicate argument or input field name at the definition site.
+    /// See https://spec.graphql.org/draft/#sec-Argument-Uniqueness
+    UniqueInputValue,
 };
 
 // TODO: import the validation object in the future
