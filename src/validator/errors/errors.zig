@@ -219,6 +219,10 @@ pub const ValidationErrorKind = enum {
     /// Duplicate argument or input field name at the definition site.
     /// See https://spec.graphql.org/draft/#sec-Argument-Uniqueness
     UniqueInputValue,
+    /// A type or directive is defined more than once in the schema.
+    /// The first definition wins; subsequent ones are ignored.
+    /// See https://spec.graphql.org/draft/#sec-Type-System
+    UniqueDefinition,
 };
 
 // TODO: import the validation object in the future
