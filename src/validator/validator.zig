@@ -9,6 +9,7 @@ pub const ExecutableValidationContext = @import("./context/validation_context.zi
 pub const OperationValidationContext = @import("./context/validation_context.zig").OperationValidationContext;
 pub const validateOperationDefinitions = @import("validation/operation.zig").validateOperationDefinitions;
 pub const buildSchema = @import("schema/builder.zig").buildSchema;
+pub const validateSchema = @import("schema/validation.zig").validateSchema;
 
 pub const Validator = struct {
     allocator: std.mem.Allocator,

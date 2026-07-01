@@ -223,6 +223,10 @@ pub const ValidationErrorKind = enum {
     /// The first definition wins; subsequent ones are ignored.
     /// See https://spec.graphql.org/draft/#sec-Type-System
     UniqueDefinition,
+    /// A type, directive, field, or argument name starts with __ (double underscore),
+    /// which is reserved for GraphQL introspection system use.
+    /// See https://spec.graphql.org/draft/#sec-Names.Reserved-Names
+    ReservedName,
 };
 
 // TODO: import the validation object in the future

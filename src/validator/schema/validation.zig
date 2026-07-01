@@ -3,15 +3,37 @@ const ast = @import("../../graphql.zig").ast;
 const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 
-pub fn validateSchema(diagnostics: *DiagnosticList, schema: *const Schema) !void {
-    var builtin_scalars = BuiltInScalars.init(diagnostics.allocator); // TODO: pass allocator.
+const validateScalarDefinition = @import("../validation/scalar.zig").validateScalarDefinition;
+const validateObjectTypeDefinition = @import("../validation/object.zig").validateObjectTypeDefinition;
+const validateInterfaceDefinition = @import("../validation/interface.zig").validateInterfaceDefinition;
+const validateUnionDefinition = @import("../validation/union.zig").validateUnionDefinition;
+const validateEnumDefinition = @import("../validation/enum.zig").validateEnumDefinition;
+const validateInputObjectDefinition = @import("../validation/input.zig").validateInputObjectDefinition;
+const validateDirectiveDefinitions = @import("../validation/directive.zig").validateDirectiveDefinitions;
+
+pub fn validateSchema(
+    allocator: std.mem.Allocator,
+    diagnostics: *DiagnosticList,
+    schema: *const Schema,
+) !void {
+    var builtin_scalars = BuiltInScalars.init(allocator);
     defer builtin_scalars.deinit();
 
-    // TODO: iterate schema.type_definitions and for each entry
-    //   1. Call validateTypeSystemName(diagnostics, name, def.describe()) to check for __ prefix
-    //   2. Dispatch to the type-specific validator based on the TypeDefinitionNode tag
-    // TODO: validate directive definitions (validateDirectiveDefinitions)
-    _ = schema;
+    var it = schema.type_definitions.iterator();
+    while (it.next()) |entry| {
+        const type_def = entry.value_ptr.*;
+        try validateTypeSystemName(diagnostics, typeDefNameNode(type_def), "a type");
+        switch (type_def) {
+            .ScalarTypeDefinition => |n| try validateScalarDefinition(allocator, diagnostics, schema, n),
+            .ObjectTypeDefinition => |n| try validateObjectTypeDefinition(allocator, diagnostics, schema, &builtin_scalars, n),
+            .InterfaceTypeDefinition => |n| try validateInterfaceDefinition(allocator, diagnostics, schema, &builtin_scalars, n),
+            .UnionTypeDefinition => |n| try validateUnionDefinition(allocator, diagnostics, schema, n),
+            .EnumTypeDefinition => |n| try validateEnumDefinition(allocator, diagnostics, schema, n),
+            .InputObjectTypeDefinition => |n| try validateInputObjectDefinition(allocator, diagnostics, schema, &builtin_scalars, n),
+        }
+    }
+
+    try validateDirectiveDefinitions(diagnostics, schema);
 }
 
 /// Validate type system names according to GraphQL spec
@@ -21,56 +43,46 @@ pub fn validateTypeSystemName(
     name: ast.NameNode,
     describe: []const u8,
 ) !void {
-    _ = diagnostics;
-    _ = name;
     _ = describe;
-    // TODO: add validation logic
+    if (std.mem.startsWith(u8, name.value, "__")) {
+        try diagnostics.push(.ReservedName);
+    }
 }
 
-// TODO: Implement type
-/// Keeps track of usage of [built-in scalars] in a schema to determine which definitions
+fn typeDefNameNode(type_def: ast.TypeDefinitionNode) ast.NameNode {
+    return switch (type_def) {
+        .ScalarTypeDefinition => |n| n.name,
+        .ObjectTypeDefinition => |n| n.name,
+        .InterfaceTypeDefinition => |n| n.name,
+        .UnionTypeDefinition => |n| n.name,
+        .EnumTypeDefinition => |n| n.name,
+        .InputObjectTypeDefinition => |n| n.name,
+    };
+}
+
+/// Keeps track of usage of built-in scalars in a schema to determine which definitions
 /// should be removed or added.
 ///
-/// > When returning the set of types from the `__Schema` introspection type,
-/// > all referenced built-in scalars must be included.
-/// > If a built-in scalar type is not referenced anywhere in a schema
-/// > (there is no field, argument, or input field of that type) then it must not be included.
-///
-/// We reflect this behavior of introspection in the `types` map of a `Valid<Schema>`.
-///
-/// [built-in scalars]: https://spec.graphql.org/draft/#sec-Scalars.Built-in-Scalars
+/// https://spec.graphql.org/draft/#sec-Scalars.Built-in-Scalars
 pub const BuiltInScalars = struct {
     allocator: std.mem.Allocator,
-    // all: &'static HashMap<Name, Node<ScalarType>>,
-    // used_and_defined: HashSet<Name>,
-    // used_and_undefined: HashSet<Name>,
 
     pub fn init(allocator: std.mem.Allocator) BuiltInScalars {
-        return BuiltInScalars{
-            .allocator = allocator,
-        };
+        return BuiltInScalars{ .allocator = allocator };
     }
 
     pub fn deinit(self: *BuiltInScalars) void {
         _ = self;
-        // TODO: cleanup resources if needed
     }
 
-    /// Records a type reference to keep track of which built-in scalars are used in a schema,
-    /// and returns whether this type name is for a built-in scalar
+    /// Returns true if the given name is a built-in scalar type.
     pub fn recordTypeRef(self: *BuiltInScalars, schema: *const Schema, name: []const u8) bool {
         _ = self;
         _ = schema;
-        _ = name;
-        // TODO: Implement built-in scalar tracking
+        const builtins = [_][]const u8{ "String", "Int", "Float", "Boolean", "ID" };
+        for (builtins) |b| {
+            if (std.mem.eql(u8, name, b)) return true;
+        }
         return false;
-    }
-
-    fn all_used(self: *BuiltInScalars) bool {
-        // let used_count = self.used_and_defined.len() + self.used_and_undefined.len();
-        // used_count == self.all.len()
-        // TODO: add validation logic
-        _ = self;
-        return true;
     }
 };
