@@ -10,12 +10,15 @@ const validateUnionDefinition = @import("../validation/union.zig").validateUnion
 const validateEnumDefinition = @import("../validation/enum.zig").validateEnumDefinition;
 const validateInputObjectDefinition = @import("../validation/input.zig").validateInputObjectDefinition;
 const validateDirectiveDefinitions = @import("../validation/directive.zig").validateDirectiveDefinitions;
+const validateSchemaDefinition = @import("../validation/schema.zig").validateSchemaDefinition;
 
 pub fn validateSchema(
     allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     schema: *const Schema,
 ) !void {
+    try validateSchemaDefinition(allocator, diagnostics, schema);
+
     var builtin_scalars = BuiltInScalars.init(allocator);
     defer builtin_scalars.deinit();
 

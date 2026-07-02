@@ -227,6 +227,13 @@ pub const ValidationErrorKind = enum {
     /// which is reserved for GraphQL introspection system use.
     /// See https://spec.graphql.org/draft/#sec-Names.Reserved-Names
     ReservedName,
+    /// A schema definition does not declare a Query root operation type.
+    /// See https://spec.graphql.org/draft/#sec-Root-Operation-Types
+    QueryRootOperationType,
+    /// A root operation type (query/mutation/subscription) references a non-Object type.
+    /// Scalars, enums, interfaces, unions, and input objects are not allowed here.
+    /// See https://spec.graphql.org/draft/#sec-Root-Operation-Types
+    RootOperationObjectType,
 };
 
 // TODO: import the validation object in the future
