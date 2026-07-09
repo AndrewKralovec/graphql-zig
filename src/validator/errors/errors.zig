@@ -227,6 +227,13 @@ pub const ValidationErrorKind = enum {
     /// which is reserved for GraphQL introspection system use.
     /// See https://spec.graphql.org/draft/#sec-Names.Reserved-Names
     ReservedName,
+    /// A fragment definition directly or transitively spreads itself,
+    /// forming a cycle. Cycles are forbidden.
+    /// See https://spec.graphql.org/draft/#sec-Fragment-spreads-must-not-form-cycles
+    RecursiveFragmentDefinition,
+    /// A fragment is defined but never used in any operation.
+    /// See https://spec.graphql.org/draft/#sec-Fragments-Must-Be-Used
+    UnusedFragment,
     /// A schema definition does not declare a Query root operation type.
     /// See https://spec.graphql.org/draft/#sec-Root-Operation-Types
     QueryRootOperationType,

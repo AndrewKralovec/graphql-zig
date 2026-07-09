@@ -225,25 +225,107 @@ pub fn validateFragmentDefinition(
 
     const previous = diagnostics.len();
     if (schema) |s| {
-        try validateFragmentTypeCondition(diagnostics, s, fragment.type_condition);
+        try validateFragmentTypeCondition(
+            diagnostics,
+            s,
+            fragment.type_condition,
+        );
     }
     const has_type_error = diagnostics.len() > previous;
 
-    // TODO: when validateFragmentCycles is implemented, gate selection set
-    // validation on both !has_type_error and !has_cycles
-    validateFragmentCycles();
+    const previous_cycles = diagnostics.len();
+    try validateFragmentCycles(context.allocator, diagnostics, exec_doc, fragment);
+    const has_cycles = diagnostics.len() > previous_cycles;
 
-    if (!has_type_error) {
+    if (!has_type_error and !has_cycles) {
+        // If the type does not exist, do not attempt to validate the selections against it;
+        // it has either already raised an error, or we are validating an executable without
+        // a schema.
+        // TODO: let type_condition = context.schema().and_then(|schema| {
         const fragment_against_type: ?ast.NamedTypeNode = fragment.type_condition;
-        try validateSelectionSet(diagnostics, exec_doc, fragment_against_type, fragment.selection_set, context);
+        try validateSelectionSet(
+            diagnostics,
+            exec_doc,
+            fragment_against_type,
+            fragment.selection_set,
+            context,
+        );
     }
 }
 
-// TODO: implement fragment cycle detection
-// Should accept (diagnostics, exec_doc, fragment) and detect when a fragment
-// directly or transitively spreads itself. Push RecursiveFragmentDefinition error.
-// See: https://spec.graphql.org/draft/#sec-Fragment-spreads-must-not-form-cycles
-fn validateFragmentCycles() void {}
+const max_fragment_cycle_depth = 100;
+
+const CycleDetectError = error{ CycleDetected, RecursionLimitExceeded } || std.mem.Allocator.Error;
+/// If a fragment spread is recursive, returns a vec containing the spread that refers back to
+/// the original fragment, and a trace of each fragment spread back to the original fragment.
+fn detectFragmentCycles(
+    exec_doc: *const ExecutableDocument,
+    selection_set: ast.SelectionSetNode,
+    path: *std.ArrayList([]const u8),
+    seen: *std.StringHashMap(void),
+) CycleDetectError!void {
+    for (selection_set.selections) |selection| {
+        switch (selection) {
+            .FragmentSpread => |spread| {
+                const spread_name = spread.name.value;
+
+                // Check if this spread's target is already in the current path.
+                const in_path = for (path.items) |name| {
+                    if (std.mem.eql(u8, name, spread_name)) break true;
+                } else false;
+
+                if (in_path) {
+                    // Only the cycle back to the ROOT fragment is reported here;
+                    // cycles involving other fragments are reported when those
+                    // fragments are validated as root.
+                    if (std.mem.eql(u8, path.items[0], spread_name))
+                        return error.CycleDetected;
+                    continue;
+                }
+
+                // Already traversed this subtree for the current root — safe.
+                const gop = try seen.getOrPut(spread_name);
+                if (gop.found_existing) continue;
+
+                const frag_def = exec_doc.getFragment(spread_name) orelse continue;
+
+                if (path.items.len > max_fragment_cycle_depth)
+                    return error.RecursionLimitExceeded;
+
+                try path.append(spread_name);
+                defer _ = path.pop();
+                try detectFragmentCycles(exec_doc, frag_def.selection_set, path, seen);
+            },
+            .InlineFragment => |inline_frag| {
+                try detectFragmentCycles(exec_doc, inline_frag.selection_set, path, seen);
+            },
+            .Field => |field| {
+                const sel_set = field.selection_set orelse continue;
+                try detectFragmentCycles(exec_doc, sel_set, path, seen);
+            },
+        }
+    }
+}
+
+fn validateFragmentCycles(
+    allocator: std.mem.Allocator,
+    diagnostics: *DiagnosticList,
+    exec_doc: *const ExecutableDocument,
+    fragment: ast.FragmentDefinitionNode,
+) std.mem.Allocator.Error!void {
+    var path = std.ArrayList([]const u8).init(allocator);
+    defer path.deinit();
+    try path.append(fragment.name.value);
+
+    var seen = std.StringHashMap(void).init(allocator);
+    defer seen.deinit();
+
+    detectFragmentCycles(exec_doc, fragment.selection_set, &path, &seen) catch |err| switch (err) {
+        error.CycleDetected => try diagnostics.push(.RecursiveFragmentDefinition),
+        error.RecursionLimitExceeded => try diagnostics.push(.DeeplyNestedType),
+        error.OutOfMemory => return error.OutOfMemory,
+    };
+}
 
 fn validateFragmentTypeCondition(
     diagnostics: *DiagnosticList,
@@ -260,8 +342,15 @@ fn validateFragmentTypeCondition(
     }
 }
 
-// TODO: implement used-fragment collection for validateFragmentsUsed
+// TODO: collect all fragment names reachable from every operation's selection set.
+// Adapt walkSelectionsWithDedupedFragments from variable.zig: instead of tracking
+// variable usage, populate a StringHashMap(void) with each FragmentSpread's
+// name.value. The walk already handles deduplication and the depth limit.
+// Signature: fn collectUsedFragments(allocator, exec_doc) !StringHashMap(void)
 fn collectUsedFragments() void {}
 
-// TODO: implement unused fragment detection
+// TODO: iterate exec_doc.fragments, call collectUsedFragments, and push
+// .UnusedFragment for each fragment whose name is absent from the used set.
+// See apollo-rs fragment.rs lines 395-417.
+// Signature: pub fn validateFragmentsUsed(allocator, diagnostics, exec_doc) !void
 fn validateFragmentsUsed() void {}
