@@ -241,6 +241,16 @@ pub const ValidationErrorKind = enum {
     /// Scalars, enums, interfaces, unions, and input objects are not allowed here.
     /// See https://spec.graphql.org/draft/#sec-Root-Operation-Types
     RootOperationObjectType,
+    // FieldsInSetCanMergeRule
+    /// Two fields share the same response key but refer to different field names.
+    /// See https://spec.graphql.org/draft/#sec-Field-Selection-Merging
+    ConflictingFieldName,
+    /// Two fields share the same response key but have non-identical argument sets.
+    /// See https://spec.graphql.org/draft/#sec-Field-Selection-Merging
+    ConflictingFieldArgument,
+    /// Two fields share the same response key but have incompatible return type shapes.
+    /// See https://spec.graphql.org/draft/#sec-Field-Selection-Merging
+    ConflictingFieldType,
 };
 
 // TODO: import the validation object in the future
@@ -254,7 +264,7 @@ pub const ValidationError = struct {
     }
 
     pub fn deinit(self: *ValidationError) void {
-        _ = self;
+        _ = self; // TODO: decide later
     }
 };
 
