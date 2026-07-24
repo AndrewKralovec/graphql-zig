@@ -20,7 +20,7 @@ pub const ExecutableValidationContext = struct {
     }
 
     pub fn deinit(self: *ExecutableValidationContext) void {
-        _ = self;
+        _ = self; // TODO: decide later
     }
 
     /// Returns the schema to validate against, if any.

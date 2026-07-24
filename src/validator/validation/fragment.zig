@@ -238,9 +238,8 @@ pub fn validateFragmentDefinition(
     const has_cycles = diagnostics.len() > previous_cycles;
 
     if (!has_type_error and !has_cycles) {
-        // If the type does not exist, do not attempt to validate the selections against it;
-        // it has either already raised an error, or we are validating an executable without
-        // a schema.
+        // If the type does not exist, do not attempt to validate the selections against it
+        // it has either already raised an error, or we are validating an executable without a schema.
         // TODO: let type_condition = context.schema().and_then(|schema| {
         const fragment_against_type: ?ast.NamedTypeNode = fragment.type_condition;
         try validateSelectionSet(
@@ -275,8 +274,7 @@ fn detectFragmentCycles(
                 } else false;
 
                 if (in_path) {
-                    // Only the cycle back to the ROOT fragment is reported here;
-                    // cycles involving other fragments are reported when those
+                    // Only the cycle back to the ROOT fragment is reported here cycles involving other fragments are reported when those
                     // fragments are validated as root.
                     if (std.mem.eql(u8, path.items[0], spread_name))
                         return error.CycleDetected;
@@ -344,13 +342,13 @@ fn validateFragmentTypeCondition(
 
 // TODO: collect all fragment names reachable from every operation's selection set.
 // Adapt walkSelectionsWithDedupedFragments from variable.zig: instead of tracking
-// variable usage, populate a StringHashMap(void) with each FragmentSpread's
-// name.value. The walk already handles deduplication and the depth limit.
+// variable usage, populate a StringHashMap(void) with each FragmentSpread's name.value.
+// The walk already handles deduplication and the depth limit.
 // Signature: fn collectUsedFragments(allocator, exec_doc) !StringHashMap(void)
 fn collectUsedFragments() void {}
 
 // TODO: iterate exec_doc.fragments, call collectUsedFragments, and push
 // .UnusedFragment for each fragment whose name is absent from the used set.
-// See apollo-rs fragment.rs lines 395-417.
+// See apollo-rs fragment.rs
 // Signature: pub fn validateFragmentsUsed(allocator, diagnostics, exec_doc) !void
 fn validateFragmentsUsed() void {}

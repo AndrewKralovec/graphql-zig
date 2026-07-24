@@ -1,5 +1,6 @@
 const std = @import("std");
 const ast = @import("../graphql.zig").ast;
+const FieldsInSetCanMerge = @import("validation/selection.zig").FieldsInSetCanMerge;
 pub const Schema = @import("./schema/schema.zig").Schema;
 pub const ValidationError = @import("./errors/errors.zig").ValidationError;
 pub const ValidationErrorKind = @import("./errors/errors.zig").ValidationErrorKind;
@@ -26,7 +27,7 @@ pub const Validator = struct {
     }
 
     pub fn deinit(self: *Validator) void {
-        _ = self;
+        _ = self; // TODO: decide later
     }
 
     pub fn validateExecutableDocument(self: *Validator, document: ast.DocumentNode) ![]ValidationError {
@@ -40,11 +41,41 @@ pub const Validator = struct {
         defer exec_doc.deinit();
 
         try validateOperationDefinitions(&diagnostics, &exec_doc, &context);
+        try validateWithSchema(self.allocator, &diagnostics, self.schema, &exec_doc);
 
         // TODO: validateFragmentCycles
         // TODO: validateFragmentsUsed
 
         return diagnostics.toOwnedSlice();
+    }
+
+    fn validateWithSchema(
+        allocator: std.mem.Allocator,
+        diagnostics: *DiagnosticList,
+        schema: *const Schema,
+        exec_doc: *const ExecutableDocument,
+    ) !void {
+        // one arena and one FieldsInSetCanMerge for the whole document so the
+        // internal cache persists across operations, avoiding redundant
+        // re-validation of identical field sets.
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        const arena_alloc = arena.allocator();
+
+        var validator = FieldsInSetCanMerge.init(arena_alloc, schema, exec_doc);
+
+        if (exec_doc.operations.anonymous) |op| {
+            if (op.selection_set) |sel_set| {
+                const against_type = schema.rootOperation(op.operation);
+                try validator.validateOperation(diagnostics, arena_alloc, sel_set, against_type);
+            }
+        }
+        for (exec_doc.operations.named.values()) |op| {
+            if (op.selection_set) |sel_set| {
+                const against_type = schema.rootOperation(op.operation);
+                try validator.validateOperation(diagnostics, arena_alloc, sel_set, against_type);
+            }
+        }
     }
 };
 
