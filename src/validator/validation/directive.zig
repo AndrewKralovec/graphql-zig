@@ -4,20 +4,26 @@ const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 
 const validateArguments = @import("./argument.zig").validateArguments;
+const validateArgumentDefinitions = @import("./input.zig").validateArgumentDefinitions;
 const validateVariableUsage = @import("./variable.zig").validateVariableUsage;
 const validateValues = @import("./value.zig").validateValues;
+const validateTypeSystemName = @import("../schema/validation.zig").validateTypeSystemName;
 
 pub fn validateDirectiveDefinition(
     diagnostics: *DiagnosticList,
     schema: *const Schema,
     def: ast.DirectiveDefinitionNode,
 ) !void {
-    _ = diagnostics;
-    _ = schema;
-    _ = def;
     // TODO: validate type system name: validateTypeSystemName(diagnostics, def.name, "a directive definition")
     // TODO: validate argument definitions: validateArgumentDefinitions(diagnostics, schema, def.arguments, DirectiveLocation.ArgumentDefinition)
     // TODO: A directive definition must not contain the use of a directive which references itself
+    try validateTypeSystemName(diagnostics, def.name, "a directive definition");
+    try validateArgumentDefinitions(
+        diagnostics,
+        schema,
+        def.arguments,
+        .ArgumentDefinition,
+    );
 }
 
 pub fn validateDirectiveDefinitions(
@@ -29,6 +35,7 @@ pub fn validateDirectiveDefinitions(
     }
 }
 
+// TODO: This is a big function: should probably not be generic over the iterator type
 pub fn validateDirectives(
     allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,

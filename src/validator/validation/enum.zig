@@ -17,6 +17,7 @@ pub fn validateEnumDefinition(
         schema,
         enum_def.directives,
         .Enum,
+        // enums don't use variables
         &[_]ast.VariableDefinitionNode{},
     );
 
