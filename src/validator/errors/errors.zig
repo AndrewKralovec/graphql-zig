@@ -208,6 +208,9 @@ pub const ValidationErrorKind = enum {
     /// An input object type contains a circular reference through NonNull fields.
     /// See https://spec.graphql.org/October2021/#sec-Input-Objects.Circular-References
     RecursiveInputObjectDefinition,
+    /// A directive definition references itself directly or transitively through its arguments.
+    /// See https://spec.graphql.org/draft/#sec-Type-System.Directives
+    RecursiveDirectiveDefinition,
     /// An input object (or other type) nests too deeply for the validator to check.
     /// Triggered when the cycle-detection depth limit (32) is reached.
     /// See https://spec.graphql.org/October2021/#sec-Input-Objects.Circular-References
