@@ -8,6 +8,8 @@ pub const DiagnosticList = @import("./errors/errors.zig").DiagnosticList;
 pub const ExecutableDocument = @import("./context/executable_document.zig").ExecutableDocument;
 pub const ExecutableValidationContext = @import("./context/validation_context.zig").ExecutableValidationContext;
 pub const OperationValidationContext = @import("./context/validation_context.zig").OperationValidationContext;
+pub const RecursionStack = @import("./traversal/traversal.zig").RecursionStack;
+
 pub const validateOperationDefinitions = @import("validation/operation.zig").validateOperationDefinitions;
 pub const buildSchema = @import("schema/builder.zig").buildSchema;
 pub const validateSchema = @import("schema/validation.zig").validateSchema;
