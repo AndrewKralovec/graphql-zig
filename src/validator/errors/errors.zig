@@ -112,6 +112,12 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Leaf-Field-Selections
     MissingSubselection,
+    /// Leaf field selections must not have sub-selections.
+    ///
+    /// A field that returns a scalar or enum type must NOT include a selection set.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Leaf-Field-Selections
+    SelectionOnLeafField,
     // OutputTypeValidation
     /// Output types
     ///

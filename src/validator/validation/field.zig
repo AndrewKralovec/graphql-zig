@@ -138,8 +138,11 @@ fn validateLeafFieldSelection(
         return false;
     }
 
-    // TODO: check the inverse. sub-selections on leaf types (scalars/enums)
-    // should produce an error (Leaf-Field-Selections)
+    if (!is_leaf and !type_def.isCompositeType()) {
+        try diagnostics.push(.SelectionOnLeafField);
+        return false;
+    }
+
     return true;
 }
 
