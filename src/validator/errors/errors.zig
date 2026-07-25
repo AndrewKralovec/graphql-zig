@@ -64,6 +64,11 @@ pub const ValidationErrorKind = enum {
     ///
     /// See https://spec.graphql.org/draft/#sec-Argument-Names
     UndefinedArgument,
+    // FieldsOnCorrectTypeRule
+    /// A queried field does not exist on the type it is selected from.
+    ///
+    /// See https://spec.graphql.org/draft/#sec-Field-Selections
+    UndefinedField,
     // ProvidedRequiredArgumentsRule
     /// Required argument is missing or null.
     /// A field or directive is only valid if all required (non-null without a
