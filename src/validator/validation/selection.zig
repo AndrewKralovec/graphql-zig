@@ -211,10 +211,11 @@ fn expandSelections(
     for (initial_seeds) |seed| try queue.append(seed);
 
     while (queue.items.len > 0) {
-        // TODO: orderedRemove(0) is O(n), it shifts the entire slice on every pop.
-        // rust uses a VecDeque (O(1) pop_front). fix: track a head index and advance
-        // it instead of removing, or switch to a real ring buffer deque. or find something online.
-        const item = queue.orderedRemove(0);
+        // NOTE:
+        // rs would use `VecDeque` (pop_front, O(1) BFS ringer buffer)
+        // were using pop() (zig has std.fifo.LinearFifo(.Dynamic), which should match `VecDeque`.)
+        // should be (LIFO/DFS, O(1)) because both consumers sort the result before use
+        const item = queue.pop() orelse break; // TODO: review if well have a bug breaking if this returns null.
         // iterate by pointer so that |*field| below points into the stable
         // slice memory (the AST), not into a transient stack copy.
         for (item.selection_set.selections) |*selection| {
