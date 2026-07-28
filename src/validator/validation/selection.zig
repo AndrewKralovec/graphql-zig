@@ -224,7 +224,10 @@ fn expandSelections(
                     const field_def: ?ast.FieldDefinitionNode = blk: {
                         const s = schema orelse break :blk null;
                         const pt = item.parent_type orelse break :blk null;
-                        break :blk s.typeField(pt, field.name.value);
+                        break :blk switch (s.typeField(pt.name.value, field.name.value)) {
+                            .found => |def| def,
+                            else => null,
+                        };
                     };
                     const sel_hash = blk: {
                         var h = std.hash.Wyhash.init(0);

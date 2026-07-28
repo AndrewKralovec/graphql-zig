@@ -61,10 +61,14 @@ pub fn validateField(
         return;
     };
 
-    // TODO: push UndefinedField error when field doesn't exist on the type
-    // need to add UndefinedField to ValidationErrorKind
-    // and also handle __typename, __type, __schema introspection fields which are always valid
-    const field_definition = s.typeField(at, field.name.value) orelse return;
+    // TODO: re-examine this once we get more schema work done.
+    const field_definition = switch (s.typeField(at.name.value, field.name.value)) {
+        .found => |def| def,
+        .no_such_type, .no_such_field => {
+            try diagnostics.push(.UndefinedField);
+            return;
+        },
+    };
 
     // For each provided argument, validate against the field definition.
     if (field.arguments) |args| {

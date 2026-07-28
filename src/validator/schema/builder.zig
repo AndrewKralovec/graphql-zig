@@ -39,12 +39,70 @@ pub fn buildSchema(
                 },
             },
             .TypeSystemExtension => {
-                // TODO: apply type extensions (extend keyword)
+                // Extensions are processed in buildFieldIndex below.
             },
         }
     }
 
+    try buildFieldIndex(&schema, document);
+
     return schema;
+}
+
+// TODO: review the repeat passes.
+fn buildFieldIndex(schema: *Schema, document: ast.DocumentNode) !void {
+    // Pass 1: base types (object and interface)
+    for (document.definitions) |def| {
+        const type_def = switch (def) {
+            .TypeSystemDefinition => |ts| switch (ts) {
+                .TypeDefinition => |td| td,
+                else => continue,
+            },
+            else => continue,
+        };
+        switch (type_def) {
+            .ObjectTypeDefinition => |obj| {
+                if (obj.fields) |list| {
+                    const map = try schema.getOrPutFieldMap(obj.name.value);
+                    for (list) |field| try map.put(field.name.value, field);
+                }
+            },
+            .InterfaceTypeDefinition => |iface| {
+                if (iface.fields) |list| {
+                    const map = try schema.getOrPutFieldMap(iface.name.value);
+                    for (list) |field| try map.put(field.name.value, field);
+                }
+            },
+            else => {},
+        }
+    }
+
+    // Pass 2: extensions(object and interface)
+    for (document.definitions) |def| {
+        const type_ext = switch (def) {
+            .TypeSystemExtension => |ts| switch (ts) {
+                .TypeExtension => |te| te,
+                else => continue,
+            },
+            else => continue,
+        };
+        switch (type_ext) {
+            .ObjectTypeExtension => |ext| {
+                if (ext.fields) |list| {
+                    const map = try schema.getOrPutFieldMap(ext.name.value);
+                    for (list) |field| try map.put(field.name.value, field);
+                }
+            },
+            .InterfaceTypeExtension => |ext| {
+                if (ext.fields) |list| {
+                    const map = try schema.getOrPutFieldMap(ext.name.value);
+                    for (list) |field| try map.put(field.name.value, field);
+                }
+            },
+            else => {},
+        }
+    }
+
 }
 
 fn typeDefName(type_def: ast.TypeDefinitionNode) []const u8 {
