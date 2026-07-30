@@ -3,6 +3,7 @@ const ast = @import("../../graphql.zig").ast;
 const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 const RecursionStack = @import("../validator.zig").RecursionStack;
+const BuiltInScalars = @import("../schema/validation.zig").BuiltInScalars;
 
 const validateArguments = @import("./argument.zig").validateArguments;
 const validateArgumentDefinitions = @import("./input.zig").validateArgumentDefinitions;
@@ -130,14 +131,18 @@ const FindRecursiveDirective = struct {
 };
 
 pub fn validateDirectiveDefinition(
+    allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     schema: *const Schema,
+    builtin_scalars: *BuiltInScalars,
     def: ast.DirectiveDefinitionNode,
 ) !void {
     try validateTypeSystemName(diagnostics, def.name, "a directive definition");
     try validateArgumentDefinitions(
+        allocator,
         diagnostics,
         schema,
+        builtin_scalars,
         def.arguments,
         .ArgumentDefinition,
     );
@@ -154,15 +159,17 @@ pub fn validateDirectiveDefinition(
 }
 
 pub fn validateDirectiveDefinitions(
+    allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     schema: *const Schema,
+    builtin_scalars: *BuiltInScalars,
 ) !void {
     for (schema.directive_definitions.values()) |def| {
-        try validateDirectiveDefinition(diagnostics, schema, def);
+        try validateDirectiveDefinition(allocator, diagnostics, schema, builtin_scalars, def);
     }
 }
 
-// TODO: This is a big function
+// TODO(rs): This is a big function
 pub fn validateDirectives(
     allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
@@ -173,7 +180,7 @@ pub fn validateDirectives(
 ) !void {
     const dirs = directives orelse return;
 
-    var seen_directives = std.StringHashMap(bool).init(allocator);
+    var seen_directives = std.StringHashMap(void).init(allocator);
     defer seen_directives.deinit();
 
     for (dirs) |dir| {
@@ -190,7 +197,8 @@ pub fn validateDirectives(
             null;
 
         // uniqueness. nonrepeatable directives must not appear more than once at the same location.
-        if (seen_directives.get(name)) |_| {
+        const seen_entry = try seen_directives.getOrPut(name);
+        if (seen_entry.found_existing) {
             const is_repeatable = if (directive_definition) |def|
                 def.repeatable
             else
@@ -200,8 +208,6 @@ pub fn validateDirectives(
             if (!is_repeatable) {
                 try diagnostics.push(.UniqueDirective);
             }
-        } else {
-            try seen_directives.put(name, true);
         }
 
         const s = schema orelse return;
@@ -248,6 +254,7 @@ fn isLocationAllowed(def_locations: []const ast.NameNode, dir_loc: ast.Directive
     return false;
 }
 
+// TODO: move/share
 fn isBuiltInType(name: []const u8) bool {
     if (std.mem.startsWith(u8, name, "__")) return true;
     return std.mem.eql(u8, name, "String") or

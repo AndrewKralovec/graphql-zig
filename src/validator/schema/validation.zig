@@ -36,7 +36,7 @@ pub fn validateSchema(
         }
     }
 
-    try validateDirectiveDefinitions(diagnostics, schema);
+    try validateDirectiveDefinitions(allocator, diagnostics, schema, &builtin_scalars);
 }
 
 /// Validate type system names according to GraphQL spec
