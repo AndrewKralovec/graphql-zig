@@ -11,125 +11,6 @@ const validateVariableUsage = @import("./variable.zig").validateVariableUsage;
 const validateValues = @import("./value.zig").validateValues;
 const validateTypeSystemName = @import("../schema/validation.zig").validateTypeSystemName;
 
-/// This struct just groups functions that are used to find self-referential directives.
-/// The way to use it is to call `FindRecursiveDirective::check`.
-const FindRecursiveDirective = struct {
-    schema: *const Schema,
-
-    fn typeDefinition(
-        self: FindRecursiveDirective,
-        dir_stack: *RecursionStack,
-        type_stack: *RecursionStack,
-        type_def: ast.TypeDefinitionNode,
-    ) !void {
-        switch (type_def) {
-            .ScalarTypeDefinition => |s| {
-                if (s.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
-            },
-            .ObjectTypeDefinition => |o| {
-                if (o.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
-            },
-            .InterfaceTypeDefinition => |i| {
-                if (i.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
-            },
-            .UnionTypeDefinition => |u| {
-                if (u.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
-            },
-            .EnumTypeDefinition => |e| {
-                if (e.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
-                if (e.values) |values| {
-                    for (values) |enum_val| try self.enumValue(dir_stack, type_stack, enum_val);
-                }
-            },
-            .InputObjectTypeDefinition => |io| {
-                if (io.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
-                if (io.fields) |fields| {
-                    for (fields) |field| try self.inputValue(dir_stack, type_stack, field);
-                }
-            },
-        }
-    }
-
-    fn directives(
-        self: FindRecursiveDirective,
-        dir_stack: *RecursionStack,
-        type_stack: *RecursionStack,
-        dirs: []const ast.DirectiveNode,
-    ) !void {
-        for (dirs) |d| try self.directive(dir_stack, type_stack, d);
-    }
-
-    fn enumValue(
-        self: FindRecursiveDirective,
-        dir_stack: *RecursionStack,
-        type_stack: *RecursionStack,
-        enum_val: ast.EnumValueDefinitionNode,
-    ) !void {
-        if (enum_val.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
-    }
-
-    fn inputValue(
-        self: FindRecursiveDirective,
-        dir_stack: *RecursionStack,
-        type_stack: *RecursionStack,
-        input_value: ast.InputValueDefinitionNode,
-    ) !void {
-        if (input_value.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
-
-        const type_name = input_value.type.innerNamedType().name.value;
-        if (self.schema.type_definitions.get(type_name)) |type_def| {
-            if (type_stack.contains(type_name)) return; // input type was already processed
-
-            if (!isBuiltInType(type_name)) {
-                try type_stack.push(type_name);
-                defer type_stack.pop();
-                try self.typeDefinition(dir_stack, type_stack, type_def);
-            } else {
-                // builtin types don't count toward the nesting limit so traverse without pushing
-                try self.typeDefinition(dir_stack, type_stack, type_def);
-            }
-        }
-    }
-
-    fn directive(
-        self: FindRecursiveDirective,
-        dir_stack: *RecursionStack,
-        type_stack: *RecursionStack,
-        d: ast.DirectiveNode,
-    ) !void {
-        const name = d.name.value;
-        if (!dir_stack.contains(name)) {
-            if (self.schema.directive_definitions.get(name)) |def| {
-                try dir_stack.push(name);
-                defer dir_stack.pop();
-                try self.directiveDefinitionBody(dir_stack, type_stack, def);
-            }
-        } else if (std.mem.eql(u8, dir_stack.first() orelse "", name)) {
-            return error.RecursiveDirectiveDefinition;
-        }
-        // Already visited but not the root — belongs to another directive's cycle, ignore.
-    }
-
-    fn directiveDefinitionBody(
-        self: FindRecursiveDirective,
-        dir_stack: *RecursionStack,
-        type_stack: *RecursionStack,
-        def: ast.DirectiveDefinitionNode,
-    ) !void {
-        const args = def.arguments orelse return;
-        for (args) |input_value| try self.inputValue(dir_stack, type_stack, input_value);
-    }
-
-    fn check(schema: *const Schema, def: ast.DirectiveDefinitionNode) !void {
-        var dir_stack = try RecursionStack.withRoot(schema.allocator, def.name.value);
-        defer dir_stack.deinit();
-        var type_stack = RecursionStack.init(schema.allocator);
-        defer type_stack.deinit();
-        const finder = FindRecursiveDirective{ .schema = schema };
-        try finder.directiveDefinitionBody(&dir_stack, &type_stack, def);
-    }
-};
-
 pub fn validateDirectiveDefinition(
     allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
@@ -288,3 +169,122 @@ pub fn isArgumentProvided(arguments: ?[]const ast.ArgumentNode, name: []const u8
     }
     return false;
 }
+
+/// This struct just groups functions that are used to find self-referential directives.
+/// The way to use it is to call `FindRecursiveDirective::check`.
+const FindRecursiveDirective = struct {
+    schema: *const Schema,
+
+    fn typeDefinition(
+        self: FindRecursiveDirective,
+        dir_stack: *RecursionStack,
+        type_stack: *RecursionStack,
+        type_def: ast.TypeDefinitionNode,
+    ) !void {
+        switch (type_def) {
+            .ScalarTypeDefinition => |s| {
+                if (s.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
+            },
+            .ObjectTypeDefinition => |o| {
+                if (o.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
+            },
+            .InterfaceTypeDefinition => |i| {
+                if (i.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
+            },
+            .UnionTypeDefinition => |u| {
+                if (u.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
+            },
+            .EnumTypeDefinition => |e| {
+                if (e.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
+                if (e.values) |values| {
+                    for (values) |enum_val| try self.enumValue(dir_stack, type_stack, enum_val);
+                }
+            },
+            .InputObjectTypeDefinition => |io| {
+                if (io.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
+                if (io.fields) |fields| {
+                    for (fields) |field| try self.inputValue(dir_stack, type_stack, field);
+                }
+            },
+        }
+    }
+
+    fn directives(
+        self: FindRecursiveDirective,
+        dir_stack: *RecursionStack,
+        type_stack: *RecursionStack,
+        dirs: []const ast.DirectiveNode,
+    ) !void {
+        for (dirs) |d| try self.directive(dir_stack, type_stack, d);
+    }
+
+    fn enumValue(
+        self: FindRecursiveDirective,
+        dir_stack: *RecursionStack,
+        type_stack: *RecursionStack,
+        enum_val: ast.EnumValueDefinitionNode,
+    ) !void {
+        if (enum_val.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
+    }
+
+    fn inputValue(
+        self: FindRecursiveDirective,
+        dir_stack: *RecursionStack,
+        type_stack: *RecursionStack,
+        input_value: ast.InputValueDefinitionNode,
+    ) !void {
+        if (input_value.directives) |dirs| try self.directives(dir_stack, type_stack, dirs);
+
+        const type_name = input_value.type.innerNamedType().name.value;
+        if (self.schema.type_definitions.get(type_name)) |type_def| {
+            if (type_stack.contains(type_name)) return; // input type was already processed
+
+            if (!isBuiltInType(type_name)) {
+                try type_stack.push(type_name);
+                defer type_stack.pop();
+                try self.typeDefinition(dir_stack, type_stack, type_def);
+            } else {
+                // builtin types don't count toward the nesting limit so traverse without pushing
+                try self.typeDefinition(dir_stack, type_stack, type_def);
+            }
+        }
+    }
+
+    fn directive(
+        self: FindRecursiveDirective,
+        dir_stack: *RecursionStack,
+        type_stack: *RecursionStack,
+        d: ast.DirectiveNode,
+    ) !void {
+        const name = d.name.value;
+        if (!dir_stack.contains(name)) {
+            if (self.schema.directive_definitions.get(name)) |def| {
+                try dir_stack.push(name);
+                defer dir_stack.pop();
+                try self.directiveDefinitionBody(dir_stack, type_stack, def);
+            }
+        } else if (std.mem.eql(u8, dir_stack.first() orelse "", name)) {
+            return error.RecursiveDirectiveDefinition;
+        }
+        // Already visited but not the root — belongs to another directive's cycle, ignore.
+    }
+
+    fn directiveDefinitionBody(
+        self: FindRecursiveDirective,
+        dir_stack: *RecursionStack,
+        type_stack: *RecursionStack,
+        def: ast.DirectiveDefinitionNode,
+    ) !void {
+        const args = def.arguments orelse return;
+        for (args) |input_value| try self.inputValue(dir_stack, type_stack, input_value);
+    }
+
+    fn check(schema: *const Schema, def: ast.DirectiveDefinitionNode) !void {
+        var dir_stack = try RecursionStack.withRoot(schema.allocator, def.name.value);
+        defer dir_stack.deinit();
+        var type_stack = RecursionStack.init(schema.allocator);
+        defer type_stack.deinit();
+        const finder = FindRecursiveDirective{ .schema = schema };
+        try finder.directiveDefinitionBody(&dir_stack, &type_stack, def);
+    }
+};
