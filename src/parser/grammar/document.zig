@@ -28,7 +28,7 @@ pub fn parseDocument(p: *Parser) !ast.DocumentNode {
 pub fn parseDefinitions(p: *Parser) ![]ast.DefinitionNode {
     p.debug("parseDefinitions");
     var nodes = std.ArrayList(ast.DefinitionNode).init(p.allocator);
-    defer nodes.deinit();
+    errdefer nodes.deinit();
 
     while (true) {
         const def = try parseDefinition(p);

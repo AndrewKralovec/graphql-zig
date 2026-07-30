@@ -34,7 +34,7 @@ pub fn parseDirectiveLocations(p: *Parser) ![]ast.NameNode {
     _ = try p.expectOptionalToken(TokenKind.Pipe);
 
     var nodes = std.ArrayList(ast.NameNode).init(p.allocator);
-    defer nodes.deinit();
+    errdefer nodes.deinit();
     while (true) {
         const name = try parseDirectiveLocation(p);
         try nodes.append(name);
@@ -69,7 +69,7 @@ pub fn parseDirectives(p: *Parser, is_const: bool) !?[]ast.DirectiveNode {
     }
 
     var nodes = std.ArrayList(ast.DirectiveNode).init(p.allocator);
-    defer nodes.deinit();
+    errdefer nodes.deinit();
     while (try p.peekKind(TokenKind.At)) {
         const dir = try parseDirective(p, is_const);
         try nodes.append(dir);
