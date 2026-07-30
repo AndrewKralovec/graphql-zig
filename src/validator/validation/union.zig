@@ -22,7 +22,7 @@ pub fn validateUnionDefinition(
 
     const member_types = union_def.types orelse &[_]ast.NamedTypeNode{};
     for (member_types) |union_member| {
-        // TODO: (?) A Union type must include one or more unique member types.
+        // TODO(rs): (?) A Union type must include one or more unique member types.
 
         const type_def = schema.type_definitions.get(union_member.name.value) orelse {
             // Union member must be defined.

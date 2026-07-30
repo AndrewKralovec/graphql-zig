@@ -3,6 +3,7 @@ const ast = @import("../../graphql.zig").ast;
 const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const Schema = @import("../validator.zig").Schema;
 const BuiltInScalars = @import("../schema/validation.zig").BuiltInScalars;
+const RecursionStack = @import("../validator.zig").RecursionStack;
 const validateDirectives = @import("./directive.zig").validateDirectives;
 const validateTypeSystemName = @import("../schema/validation.zig").validateTypeSystemName;
 
@@ -22,7 +23,11 @@ pub fn validateInputObjectDefinition(
         &[_]ast.VariableDefinitionNode{},
     );
 
-    try checkRecursiveInputValue(allocator, diagnostics, schema, input_obj);
+    FindRecursiveInputValue.check(schema, input_obj) catch |err| switch (err) {
+        error.RecursiveInputObjectDefinition => try diagnostics.push(.RecursiveInputObjectDefinition),
+        error.DeeplyNestedType => try diagnostics.push(.DeeplyNestedType),
+        else => return err,
+    };
 
     // Fields in an Input Object Definition must be unique
     //
@@ -65,14 +70,13 @@ pub fn validateArgumentDefinitions(
         "an argument",
     );
 
-    var seen = std.StringHashMap(bool).init(allocator);
+    var seen = std.StringHashMap(void).init(allocator);
     defer seen.deinit();
     for (args) |arg| {
         const name = arg.name.value;
-        if (seen.get(name) != null) {
+        const entry = try seen.getOrPut(name);
+        if (entry.found_existing) {
             try diagnostics.push(.UniqueInputValue);
-        } else {
-            try seen.put(name, true);
         }
     }
 }
@@ -111,76 +115,58 @@ fn validateInputValueDefinitions(
     }
 }
 
-// Detects forbidden circular references in input object field types.
-// Only NonNull named types can form cycles. nullable and list references are allowed.
-fn checkRecursiveInputValue(
-    allocator: std.mem.Allocator,
-    diagnostics: *DiagnosticList,
+// Implements [Circular References](https://spec.graphql.org/October2021/#sec-Input-Objects.Circular-References)
+// part of the input object validation spec.
+const FindRecursiveInputValue = struct {
     schema: *const Schema,
-    input_obj: ast.InputObjectTypeDefinitionNode,
-) !void {
-    var stack = std.ArrayList([]const u8).init(allocator);
-    defer stack.deinit();
-    try stack.append(input_obj.name.value);
-    try checkInputObject(diagnostics, schema, &stack, input_obj);
-}
 
-fn checkInputObject(
-    diagnostics: *DiagnosticList,
-    schema: *const Schema,
-    stack: *std.ArrayList([]const u8),
-    input_obj: ast.InputObjectTypeDefinitionNode,
-) !void {
-    const fields = input_obj.fields orelse return;
-    for (fields) |field| {
-        try checkInputValue(diagnostics, schema, stack, field);
+    fn inputObject(
+        self: FindRecursiveInputValue,
+        stack: *RecursionStack,
+        input_obj: ast.InputObjectTypeDefinitionNode,
+    ) !void {
+        const fields = input_obj.fields orelse return;
+        for (fields) |field| try self.inputValue(stack, field);
     }
-}
 
-fn checkInputValue(
-    diagnostics: *DiagnosticList,
-    schema: *const Schema,
-    stack: *std.ArrayList([]const u8),
-    field: ast.InputValueDefinitionNode,
-) !void {
-    // Only NonNull wrapping a Named type is forbidden by the spec.
-    // Nullable references and list types are allowed to be self-referential.
-    switch (field.type.*) {
-        .NonNullType => |non_null| switch (non_null.type.*) {
-            .NamedType => |named| {
-                const name = named.name.value;
-
-                for (stack.items) |seen| {
-                    if (std.mem.eql(u8, seen, name)) {
+    fn inputValue(
+        self: FindRecursiveInputValue,
+        stack: *RecursionStack,
+        field: ast.InputValueDefinitionNode,
+    ) !void {
+        switch (field.type.*) {
+            .NonNullType => |non_null| switch (non_null.type.*) {
+                .NamedType => |named| {
+                    const name = named.name.value;
+                    if (stack.contains(name)) {
                         // Cycle back to the root we started from — report it.
                         // Cycles not rooted here are caught when that type is validated.
-                        if (std.mem.eql(u8, stack.items[0], name)) {
-                            try diagnostics.push(.RecursiveInputObjectDefinition);
+                        if (std.mem.eql(u8, stack.first() orelse "", name)) {
+                            return error.RecursiveInputObjectDefinition;
                         }
                         return;
                     }
-                }
-
-                if (stack.items.len >= 32) {
-                    try diagnostics.push(.DeeplyNestedType);
-                    return;
-                }
-
-                if (schema.type_definitions.get(name)) |type_def| {
-                    switch (type_def) {
-                        .InputObjectTypeDefinition => |inner| {
-                            try stack.append(name);
-                            try checkInputObject(diagnostics, schema, stack, inner);
-                            _ = stack.pop();
-                        },
-                        else => {},
+                    if (self.schema.type_definitions.get(name)) |type_def| {
+                        switch (type_def) {
+                            .InputObjectTypeDefinition => |inner| {
+                                try stack.push(name); // returns error.DeeplyNestedType at depth >= 32
+                                defer stack.pop();
+                                try self.inputObject(stack, inner);
+                            },
+                            else => {},
+                        }
                     }
-                }
+                },
+                else => {},
             },
-            // NonNull(List) or NonNull(NonNull) — not a simple named reference, skip
             else => {},
-        },
-        // Nullable type — allowed to be self-referential per spec
-        else => {},
+        }
     }
-}
+
+    fn check(schema: *const Schema, input_obj: ast.InputObjectTypeDefinitionNode) !void {
+        var stack = try RecursionStack.withRoot(schema.allocator, input_obj.name.value);
+        defer stack.deinit();
+        const finder = FindRecursiveInputValue{ .schema = schema };
+        try finder.inputObject(&stack, input_obj);
+    }
+};
