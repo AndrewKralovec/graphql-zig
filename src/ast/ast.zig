@@ -739,24 +739,26 @@ const KeywordMap = struct {
     value: SyntaxKeyWord,
 };
 
+// simple bench marks showed comparable perf to comptime map StaticStringMap(SyntaxKeyWord)
 /// This is a map of keywords to their corresponding enum values.
 const keyword_map = [_]KeywordMap{
-    .{ .name = "directive", .value = SyntaxKeyWord.Directive },
-    .{ .name = "enum", .value = SyntaxKeyWord.Enum },
-    .{ .name = "extend", .value = SyntaxKeyWord.Extend },
+    // ordered by frequently used keywords
+    .{ .name = "{", .value = SyntaxKeyWord.LCurly },
+    .{ .name = "query", .value = SyntaxKeyWord.Query },
     .{ .name = "fragment", .value = SyntaxKeyWord.Fragment },
+    .{ .name = "mutation", .value = SyntaxKeyWord.Mutation },
+    .{ .name = "on", .value = SyntaxKeyWord.On },
     .{ .name = "input", .value = SyntaxKeyWord.Input },
+    .{ .name = "subscription", .value = SyntaxKeyWord.Subscription },
+    .{ .name = "directive", .value = SyntaxKeyWord.Directive },
     .{ .name = "interface", .value = SyntaxKeyWord.Interface },
     .{ .name = "type", .value = SyntaxKeyWord.Type },
-    .{ .name = "query", .value = SyntaxKeyWord.Query },
-    .{ .name = "mutation", .value = SyntaxKeyWord.Mutation },
-    .{ .name = "subscription", .value = SyntaxKeyWord.Subscription },
-    .{ .name = "{", .value = SyntaxKeyWord.LCurly },
+    .{ .name = "union", .value = SyntaxKeyWord.Union },
+    .{ .name = "enum", .value = SyntaxKeyWord.Enum },
     .{ .name = "scalar", .value = SyntaxKeyWord.Scalar },
     .{ .name = "schema", .value = SyntaxKeyWord.Schema },
-    .{ .name = "union", .value = SyntaxKeyWord.Union },
+    .{ .name = "extend", .value = SyntaxKeyWord.Extend },
     .{ .name = "implements", .value = SyntaxKeyWord.Implements },
-    .{ .name = "on", .value = SyntaxKeyWord.On },
     .{ .name = "repeatable", .value = SyntaxKeyWord.Repeatable },
 };
 
