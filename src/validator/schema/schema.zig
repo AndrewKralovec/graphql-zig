@@ -91,6 +91,35 @@ pub const Schema = struct {
         }
     }
 
+    /// Returns whether `maybe_subtype` is a subtype of `abstract_type`, which means either:
+    ///
+    /// * `maybe_subtype` implements the interface `abstract_type`
+    /// * `maybe_subtype` is a member of the union type `abstract_type`
+    pub fn isSubtype(self: *const Schema, abstract_name: []const u8, concrete_name: []const u8) bool {
+        const abstract_def = self.type_definitions.get(abstract_name) orelse return false;
+        switch (abstract_def) {
+            .InterfaceTypeDefinition => {
+                const concrete_def = self.type_definitions.get(concrete_name) orelse return false;
+                const ifaces: ?[]const ast.NamedTypeNode = switch (concrete_def) {
+                    .ObjectTypeDefinition => |obj| obj.interfaces,
+                    .InterfaceTypeDefinition => |iface| iface.interfaces,
+                    else => return false,
+                };
+                for (ifaces orelse return false) |iface| {
+                    if (std.mem.eql(u8, iface.name.value, abstract_name)) return true;
+                }
+                return false;
+            },
+            .UnionTypeDefinition => |union_def| {
+                for (union_def.types orelse return false) |member| {
+                    if (std.mem.eql(u8, member.name.value, concrete_name)) return true;
+                }
+                return false;
+            },
+            else => return false,
+        }
+    }
+
     /// Gets or creates the inner field map for the named type. Used by the builder.
     pub fn getOrPutFieldMap(self: *Schema, type_name: []const u8) !*std.StringArrayHashMap(ast.FieldDefinitionNode) {
         const entry = try self.field_index.getOrPut(type_name);

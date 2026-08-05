@@ -6,7 +6,6 @@ const validateDirectives = @import("./directive.zig").validateDirectives;
 const validateFieldDefinitions = @import("./field.zig").validateFieldDefinitions;
 const BuiltInScalars = @import("../schema/validation.zig").BuiltInScalars;
 
-// TODO: validateInterfaceDefinition is not yet called. Wire it up in validateSchema() once the type-definition dispatch loop is implemented.
 pub fn validateInterfaceDefinition(
     allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
@@ -197,9 +196,7 @@ pub fn isValidImplementationFieldType(
                 .ListType => return false,
             };
             if (std.mem.eql(u8, iface_named.name.value, impl_named.name.value)) return true;
-            // TODO: schema.isSubtype(iface_named, impl_named) — requires union/abstract
-            //       subtype tracking in Schema, which is not yet implemented.
-            return false;
+            return schema.isSubtype(iface_named.name.value, impl_named.name.value);
         },
         .ListType => |iface_list| {
             // Nullable list: impl may be List or NonNull(List); recurse on element type.
