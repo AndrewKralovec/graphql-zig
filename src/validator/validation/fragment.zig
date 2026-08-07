@@ -5,18 +5,18 @@ const DiagnosticList = @import("../validator.zig").DiagnosticList;
 const ExecutableDocument = @import("../validator.zig").ExecutableDocument;
 const OperationValidationContext = @import("../validator.zig").OperationValidationContext;
 const Schema = @import("../validator.zig").Schema;
+const ImplementersMap = @import("../context/validation_context.zig").ImplementersMap;
 
 const validateSelectionSet = @import("./selection.zig").validateSelectionSet;
 const validateDirectives = @import("./directive.zig").validateDirectives;
 
-// TODO: cache this in ExecutableValidationContext as an implementers_map
 /// Given a type definition, find all the type names that can be used for fragment spreading.
 ///
 /// Spec: https://spec.graphql.org/October2021/#GetPossibleTypes()
 fn getPossibleTypes(
     allocator: std.mem.Allocator,
-    schema: *const Schema,
     type_def: ast.TypeDefinitionNode,
+    implementers_map: *const ImplementersMap,
 ) !std.StringHashMap(void) {
     var set = std.StringHashMap(void).init(allocator);
 
@@ -26,20 +26,12 @@ fn getPossibleTypes(
             try set.put(obj.name.value, {});
         },
         // 2. If `type` is an interface type, return the set of object types implementing `type`.
+        // Uses the pre-built implementers_map instead of scanning all schema types.
         .InterfaceTypeDefinition => |iface| {
-            for (schema.type_definitions.values()) |td| {
-                switch (td) {
-                    .ObjectTypeDefinition => |obj| {
-                        if (obj.interfaces) |ifaces| {
-                            for (ifaces) |implemented| {
-                                if (std.mem.eql(u8, implemented.name.value, iface.name.value)) {
-                                    try set.put(obj.name.value, {});
-                                    break;
-                                }
-                            }
-                        }
-                    },
-                    else => {},
+            if (implementers_map.get(iface.name.value)) |implementers| {
+                var it = implementers.objects.keyIterator();
+                while (it.next()) |key| {
+                    try set.put(key.*, {});
                 }
             }
         },
@@ -60,14 +52,12 @@ fn getPossibleTypes(
 // NOTE: apollo-rs also passes document and selection here to produce richer diagnostics
 // (fragment name, source location, inline vs named spread distinction)
 // that is why it is omitted for now.
-// TODO: apollo-rs uses context.implementers_map() which is a
-// lazily computed cached map. We recompute possible types on every call instead
 fn validateFragmentSpreadType(
-    allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
     schema: *const Schema,
     against_type: ast.NamedTypeNode,
     type_condition: ast.NamedTypeNode,
+    context: *OperationValidationContext,
 ) !void {
     // Treat a spread that's just literally on the parent type as always valid:
     // by spec text, it shouldn't be, but graphql-{js,java,go} and others all do this.
@@ -82,12 +72,12 @@ fn validateFragmentSpreadType(
     // We cannot check anything if the parent type is unknown.
     const against_def = schema.type_definitions.get(against_type.name.value) orelse return;
 
-    // TODO: implementers_map
+    const implementers_map = try context.implementersMap();
 
-    var parent_types = try getPossibleTypes(allocator, schema, against_def);
+    var parent_types = try getPossibleTypes(context.allocator, against_def, implementers_map);
     defer parent_types.deinit();
 
-    var condition_types = try getPossibleTypes(allocator, schema, condition_def);
+    var condition_types = try getPossibleTypes(context.allocator, condition_def, implementers_map);
     defer condition_types.deinit();
 
     var has_intersection = false;
@@ -137,11 +127,11 @@ pub fn validateInlineFragment(
             if (against_type) |parent| {
                 if (inline_fragment.type_condition) |type_cond| {
                     try validateFragmentSpreadType(
-                        context.allocator,
                         diagnostics,
                         s,
                         parent,
                         type_cond,
+                        context,
                     );
                 }
             }
@@ -188,11 +178,11 @@ pub fn validateFragmentSpread(
     if (schema) |s| {
         if (against_type) |parent| {
             try validateFragmentSpreadType(
-                context.allocator,
                 diagnostics,
                 s,
                 parent,
                 frag_def.type_condition,
+                context,
             );
         }
     }
@@ -200,18 +190,15 @@ pub fn validateFragmentSpread(
     const gop = try context.validated_fragments.getOrPut(spread.name.value);
     if (gop.found_existing) return;
 
-    try validateFragmentDefinition(diagnostics, exec_doc, against_type, frag_def, context);
+    try validateFragmentDefinition(diagnostics, exec_doc, frag_def, context);
 }
 
 pub fn validateFragmentDefinition(
     diagnostics: *DiagnosticList,
     exec_doc: *const ExecutableDocument,
-    against_type: ?ast.NamedTypeNode,
     fragment: ast.FragmentDefinitionNode,
     context: *OperationValidationContext,
 ) std.mem.Allocator.Error!void {
-    _ = against_type;
-
     const schema = context.schema();
     const variables = context.variables orelse &[_]ast.VariableDefinitionNode{};
     try validateDirectives(
@@ -238,10 +225,14 @@ pub fn validateFragmentDefinition(
     const has_cycles = diagnostics.len() > previous_cycles;
 
     if (!has_type_error and !has_cycles) {
-        // If the type does not exist, do not attempt to validate the selections against it
-        // it has either already raised an error, or we are validating an executable without a schema.
-        // TODO: let type_condition = context.schema().and_then(|schema| {
-        const fragment_against_type: ?ast.NamedTypeNode = fragment.type_condition;
+        // Only pass the type condition to selection validation if the type actually exists
+        // in the schema; if not, it has already raised an error or we have no schema.
+        const fragment_against_type: ?ast.NamedTypeNode = blk: {
+            const s = context.schema() orelse break :blk null;
+            if (s.type_definitions.contains(fragment.type_condition.name.value))
+                break :blk fragment.type_condition;
+            break :blk null;
+        };
         try validateSelectionSet(
             diagnostics,
             exec_doc,
@@ -340,15 +331,80 @@ fn validateFragmentTypeCondition(
     }
 }
 
-// TODO: collect all fragment names reachable from every operation's selection set.
-// Adapt walkSelectionsWithDedupedFragments from variable.zig: instead of tracking
-// variable usage, populate a StringHashMap(void) with each FragmentSpread's name.value.
-// The walk already handles deduplication and the depth limit.
-// Signature: fn collectUsedFragments(allocator, exec_doc) !StringHashMap(void)
-fn collectUsedFragments() void {}
+const max_walk_depth = 500;
 
-// TODO: iterate exec_doc.fragments, call collectUsedFragments, and push
-// .UnusedFragment for each fragment whose name is absent from the used set.
-// See apollo-rs fragment.rs
-// Signature: pub fn validateFragmentsUsed(allocator, diagnostics, exec_doc) !void
-fn validateFragmentsUsed() void {}
+const CollectWalkError = error{RecursionLimitExceeded} || std.mem.Allocator.Error;
+
+fn walkCollectFragments(
+    exec_doc: *const ExecutableDocument,
+    selection_set: ast.SelectionSetNode,
+    names: *std.StringHashMap(void),
+    seen: *std.StringHashMap(void),
+    depth: usize,
+) CollectWalkError!void {
+    if (depth >= max_walk_depth) return error.RecursionLimitExceeded;
+
+    for (selection_set.selections) |selection| {
+        switch (selection) {
+            .FragmentSpread => |spread| {
+                try names.put(spread.name.value, {});
+                const gop = try seen.getOrPut(spread.name.value);
+                if (gop.found_existing) continue;
+                const frag_def = exec_doc.getFragment(spread.name.value) orelse continue;
+                try walkCollectFragments(exec_doc, frag_def.selection_set, names, seen, depth + 1);
+            },
+            .InlineFragment => |inline_frag| {
+                try walkCollectFragments(exec_doc, inline_frag.selection_set, names, seen, depth + 1);
+            },
+            .Field => |field| {
+                const sel_set = field.selection_set orelse continue;
+                try walkCollectFragments(exec_doc, sel_set, names, seen, depth + 1);
+            },
+        }
+    }
+}
+
+fn collectUsedFragments(
+    allocator: std.mem.Allocator,
+    exec_doc: *const ExecutableDocument,
+) CollectWalkError!std.StringHashMap(void) {
+    var names = std.StringHashMap(void).init(allocator);
+    errdefer names.deinit();
+
+    var seen = std.StringHashMap(void).init(allocator);
+    defer seen.deinit();
+
+    if (exec_doc.operations.anonymous) |op| {
+        if (op.selection_set) |sel_set| {
+            try walkCollectFragments(exec_doc, sel_set, &names, &seen, 0);
+        }
+    }
+    for (exec_doc.operations.named.values()) |op| {
+        if (op.selection_set) |sel_set| {
+            try walkCollectFragments(exec_doc, sel_set, &names, &seen, 0);
+        }
+    }
+
+    return names;
+}
+
+pub fn validateFragmentsUsed(
+    allocator: std.mem.Allocator,
+    diagnostics: *DiagnosticList,
+    exec_doc: *const ExecutableDocument,
+) !void {
+    var used_fragments = collectUsedFragments(allocator, exec_doc) catch |err| switch (err) {
+        error.RecursionLimitExceeded => {
+            try diagnostics.push(.RecursionError);
+            return;
+        },
+        error.OutOfMemory => return error.OutOfMemory,
+    };
+    defer used_fragments.deinit();
+
+    for (exec_doc.fragments.values()) |fragment| {
+        if (!used_fragments.contains(fragment.name.value)) {
+            try diagnostics.push(.UnusedFragment);
+        }
+    }
+}
