@@ -255,6 +255,10 @@ pub const ValidationErrorKind = enum {
     /// Scalars, enums, interfaces, unions, and input objects are not allowed here.
     /// See https://spec.graphql.org/draft/#sec-Root-Operation-Types
     RootOperationObjectType,
+    /// The same type name is assigned to more than one root operation
+    /// (query, mutation, or subscription) in the schema definition.
+    /// See https://spec.graphql.org/draft/#sec-Root-Operation-Types
+    DuplicateRootOperationType,
     // FieldsInSetCanMergeRule
     /// Two fields share the same response key but refer to different field names.
     /// See https://spec.graphql.org/draft/#sec-Field-Selection-Merging

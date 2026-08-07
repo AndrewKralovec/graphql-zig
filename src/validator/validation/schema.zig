@@ -25,7 +25,7 @@ pub fn validateSchemaDefinition(
 
 // All root operations in a schema definition must be unique.
 //
-// Return a Unique Operation Definition error in case of a duplicate name.
+// Return a Duplicate Root Operation Type error in case of a duplicate name.
 pub fn validateRootOperationDefinitions(
     allocator: std.mem.Allocator,
     diagnostics: *DiagnosticList,
@@ -33,24 +33,38 @@ pub fn validateRootOperationDefinitions(
 ) !void {
     _ = allocator;
 
+    const SeenOp = struct { op_type: ast.OperationType, name: []const u8 };
+    var seen: [3]SeenOp = undefined;
+    var seen_count: usize = 0;
+
     const op_types = [_]ast.OperationType{ .Query, .Mutation, .Subscription };
     for (op_types) |op_type| {
+        // Root Operation Named Type must be of Object Type.
+        //
+        // Return a Object Type error if it's any other type definition.
         const named_type = schema.rootOperation(op_type) orelse continue;
-
-        const type_def = schema.type_definitions.get(named_type.name.value) orelse {
-            // Root operation references a type that does not exist.
+        const name = named_type.name.value;
+        const type_def = schema.type_definitions.get(name) orelse {
             try diagnostics.push(.UndefinedDefinition);
             continue;
         };
 
-        // Root Operation Named Type must be of Object Type.
-        //
-        // Return a Object Type error if it's any other type definition.
         switch (type_def) {
-            .ObjectTypeDefinition => {}, // valid root operations must be Object types
-            else => {
-                try diagnostics.push(.RootOperationObjectType);
-            },
+            .ObjectTypeDefinition => {},
+            else => try diagnostics.push(.RootOperationObjectType),
+        }
+
+        var is_dup = false;
+        for (seen[0..seen_count]) |prev| {
+            if (std.mem.eql(u8, prev.name, name)) {
+                try diagnostics.push(.DuplicateRootOperationType);
+                is_dup = true;
+                break;
+            }
+        }
+        if (!is_dup) {
+            seen[seen_count] = .{ .op_type = op_type, .name = name };
+            seen_count += 1;
         }
     }
 }
