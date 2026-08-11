@@ -58,7 +58,7 @@ fn validateFragmentSpreadType(
     against_type: ast.NamedTypeNode,
     type_condition: ast.NamedTypeNode,
     context: *OperationValidationContext,
-) !void {
+) std.mem.Allocator.Error!void {
     // Treat a spread that's just literally on the parent type as always valid:
     // by spec text, it shouldn't be, but graphql-{js,java,go} and others all do this.
     // See https://github.com/graphql/graphql-spec/issues/1109
@@ -230,7 +230,7 @@ pub fn validateFragmentDefinition(
         // Only pass the type condition to selection validation if the type actually exists
         // in the schema; if not, it has already raised an error or we have no schema.
         const fragment_against_type: ?ast.NamedTypeNode = blk: {
-            const s = context.schema() orelse break :blk null;
+            const s = schema orelse break :blk null;
             if (s.type_definitions.contains(fragment.type_condition.name.value))
                 break :blk fragment.type_condition;
             break :blk null;
@@ -356,11 +356,11 @@ fn walkCollectFragments(
                 try walkCollectFragments(exec_doc, frag_def.selection_set, names, seen, depth + 1);
             },
             .InlineFragment => |inline_frag| {
-                try walkCollectFragments(exec_doc, inline_frag.selection_set, names, seen, depth + 1);
+                try walkCollectFragments(exec_doc, inline_frag.selection_set, names, seen, depth);
             },
             .Field => |field| {
                 const sel_set = field.selection_set orelse continue;
-                try walkCollectFragments(exec_doc, sel_set, names, seen, depth + 1);
+                try walkCollectFragments(exec_doc, sel_set, names, seen, depth);
             },
         }
     }
