@@ -137,10 +137,12 @@ pub fn validateInlineFragment(
             }
         }
 
-        const fragment_against_type: ?ast.NamedTypeNode = if (inline_fragment.type_condition) |type_cond|
-            type_cond
-        else
-            against_type;
+        const fragment_against_type: ?ast.NamedTypeNode = blk: {
+            if (context.schema() != null) {
+                if (inline_fragment.type_condition) |tc| break :blk tc;
+            }
+            break :blk against_type;
+        };
 
         try validateSelectionSet(
             diagnostics,
