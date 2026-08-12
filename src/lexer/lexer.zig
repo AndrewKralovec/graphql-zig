@@ -47,17 +47,6 @@ pub const Lexer = struct {
         return token;
     }
 
-    /// Return the next token in the stream.
-    /// An error is returned if read is called after the lexer has finished.
-    /// A lexer is finished when it reaches EOF or when a limit is reached.
-    pub fn read(self: *Lexer) LexerError!Token {
-        const token = try self.next();
-        if (token == null) {
-            return LexerError.ReadAfterFinished;
-        }
-        return token.?;
-    }
-
     /// Fully lex the input stream and return a struct containing all tokens and all errors encountered.
     /// Errors from the allocator are propagated immediately.
     /// The caller is responsible for freeing both slices.
@@ -113,8 +102,6 @@ pub const Lexer = struct {
 pub const LexerError = CursorError || error{
     /// The token scan limit has been exceeded.
     LimitReached,
-    /// Read was called after the lexer has already finished processing all input.
-    ReadAfterFinished,
 };
 
 /// Result from lexing an entire input stream.
@@ -219,21 +206,6 @@ test "should return error when limit is reached" {
     }
     try std.testing.expect(result.tokens.len == 10);
     try std.testing.expect(result.errors.len == 1);
-}
-
-test "should return error when limit is reached on read" {
-    const allocator = std.testing.allocator;
-    const input = "{ user { id } }"; // 12 tokens including EOF.
-
-    var lexer = Lexer.init(input, .{ .limit = 100 });
-    const result = try lexer.lex(allocator);
-    defer {
-        allocator.free(result.tokens);
-        allocator.free(result.errors);
-    }
-    _ = lexer.read() catch |err| {
-        try std.testing.expect(err == error.ReadAfterFinished);
-    };
 }
 
 test "lex should tokenize input" {

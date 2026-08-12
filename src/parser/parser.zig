@@ -60,13 +60,13 @@ pub const Parser = struct {
     }
 
     /// Next non-ignorable token from the `Lexer`.
-    pub fn nextToken(self: *Parser) LexerError!Token {
+    pub fn nextToken(self: *Parser) ParserError!Token {
         return nextNonIgnorableToken(&self.lexer);
     }
 
     /// Lookahead at the next non-ignorable token without advancing the `Lexer`.
     /// This is done by cloning the `Lexer` and scanning ahead.
-    pub fn lookahead(self: *Parser) LexerError!Token {
+    pub fn lookahead(self: *Parser) ParserError!Token {
         // TODO: Inefficient, refactor the lexer/cursor to allow lookahead without cloning.
         var lexer = self.lexer;
         return nextNonIgnorableToken(&lexer);
@@ -74,7 +74,7 @@ pub const Parser = struct {
 
     /// Peek the next token from the `Lexer`.
     /// This will load the next token until it is popped.
-    pub fn peek(self: *Parser) LexerError!Token {
+    pub fn peek(self: *Parser) ParserError!Token {
         if (self.current_token == null) {
             self.current_token = try self.nextToken();
         }
@@ -82,13 +82,13 @@ pub const Parser = struct {
     }
 
     /// Peek and check if the next token is of a given kind.
-    pub fn peekKind(self: *Parser, kind: TokenKind) LexerError!bool {
+    pub fn peekKind(self: *Parser, kind: TokenKind) ParserError!bool {
         const token = try self.peek();
         return (token.kind == kind);
     }
 
     /// Pop the current token and reset the peeked state.
-    pub fn pop(self: *Parser) LexerError!Token {
+    pub fn pop(self: *Parser) ParserError!Token {
         const token = try self.peek();
         self.current_token = null;
         return token;
@@ -96,7 +96,7 @@ pub const Parser = struct {
 
     /// If the next token is a given keyword and matches the expected keyword,
     /// pop it and return true. Otherwise, return false and no-op.
-    pub fn expectOptionalKeyword(self: *Parser, keyword: ast.SyntaxKeyWord) LexerError!bool {
+    pub fn expectOptionalKeyword(self: *Parser, keyword: ast.SyntaxKeyWord) ParserError!bool {
         const token = try self.peek();
         const tkw = ast.stringToKeyword(token.data) orelse return false;
         if (token.kind == TokenKind.Name and tkw == keyword) {
@@ -115,7 +115,7 @@ pub const Parser = struct {
 
     /// If the next token is of the expected kind, pop it and return true.
     /// Otherwise, return false and no-op.
-    pub fn expectOptionalToken(self: *Parser, kind: TokenKind) LexerError!bool {
+    pub fn expectOptionalToken(self: *Parser, kind: TokenKind) ParserError!bool {
         const token = try self.peek();
         if (token.kind == kind) {
             _ = try self.pop();
@@ -141,18 +141,14 @@ pub const Parser = struct {
         return doc;
     }
 
-    fn nextNonIgnorableToken(lexer: *Lexer) LexerError!Token {
-        while (true) {
-            const token = try lexer.read();
+    fn nextNonIgnorableToken(lexer: *Lexer) ParserError!Token {
+        while (try lexer.next()) |token| {
             switch (token.kind) {
-                TokenKind.Comment, TokenKind.Whitespace, TokenKind.Comma => {
-                    // Ignore comments and whitespace.
-                    continue;
-                },
+                TokenKind.Comment, TokenKind.Whitespace, TokenKind.Comma => continue,
                 else => return token,
             }
         }
-        // unreachable;
+        return ParserError.ReadAfterFinished;
     }
 };
 
@@ -162,6 +158,8 @@ pub const ParserError = LexerError || error{
     UnexpectedToken,
     /// The parser expected a specific keyword but found something else.
     UnexpectedKeyword,
+    /// Token stream was accessed after the lexer has already finished processing all input.
+    ReadAfterFinished,
 };
 
 /// Parse the given GraphQL source text into an AST representation, using the given allocator.
