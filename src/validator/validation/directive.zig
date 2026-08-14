@@ -91,7 +91,7 @@ pub fn validateDirectives(
             }
         }
 
-        const s = schema orelse return;
+        const s = schema orelse continue;
         if (directive_definition) |def| {
             if (!isLocationAllowed(def.locations, dir_loc)) {
                 try diagnostics.push(.UnsupportedLocation);

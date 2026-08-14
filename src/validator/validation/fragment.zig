@@ -280,7 +280,7 @@ fn detectFragmentCycles(
 
                 const frag_def = exec_doc.getFragment(spread_name) orelse continue;
 
-                if (path.items.len > max_fragment_cycle_depth)
+                if (path.items.len >= max_fragment_cycle_depth)
                     return error.RecursionLimitExceeded;
 
                 try path.append(spread_name);
@@ -356,11 +356,11 @@ fn walkCollectFragments(
                 try walkCollectFragments(exec_doc, frag_def.selection_set, names, seen, depth + 1);
             },
             .InlineFragment => |inline_frag| {
-                try walkCollectFragments(exec_doc, inline_frag.selection_set, names, seen, depth);
+                try walkCollectFragments(exec_doc, inline_frag.selection_set, names, seen, depth + 1);
             },
             .Field => |field| {
                 const sel_set = field.selection_set orelse continue;
-                try walkCollectFragments(exec_doc, sel_set, names, seen, depth);
+                try walkCollectFragments(exec_doc, sel_set, names, seen, depth + 1);
             },
         }
     }

@@ -197,7 +197,7 @@ fn sameNameAndArguments(
 fn expandSelections(
     allocator: std.mem.Allocator,
     exec_doc: *const ExecutableDocument,
-    schema: ?*const Schema,
+    schema: *const Schema,
     initial_seeds: []const SelectionQueueItem,
 ) !std.ArrayList(FieldSelection) {
     var result = std.ArrayList(FieldSelection).init(allocator);
@@ -222,9 +222,8 @@ fn expandSelections(
             switch (selection.*) {
                 .Field => |*field| {
                     const field_def: ?ast.FieldDefinitionNode = blk: {
-                        const s = schema orelse break :blk null;
                         const pt = item.parent_type orelse break :blk null;
-                        break :blk switch (s.typeField(pt.name.value, field.name.value)) {
+                        break :blk switch (schema.typeField(pt.name.value, field.name.value)) {
                             .found => |def| def,
                             else => null,
                         };
@@ -413,7 +412,7 @@ const CacheEntry = struct {
 /// [1]: https://web.archive.org/web/20240208084612/https://tech.new-work.se/graphql-overlapping-fields-can-be-merged-fast-ea6e92e0a01
 pub const FieldsInSetCanMerge = struct {
     allocator: std.mem.Allocator,
-    schema: ?*const Schema,
+    schema: *const Schema,
     exec_doc: *const ExecutableDocument,
     /// Stores merged field sets.
     ///
@@ -426,7 +425,7 @@ pub const FieldsInSetCanMerge = struct {
 
     pub fn init(
         allocator: std.mem.Allocator,
-        schema: ?*const Schema,
+        schema: *const Schema,
         exec_doc: *const ExecutableDocument,
     ) FieldsInSetCanMerge {
         return .{
@@ -507,23 +506,23 @@ pub const FieldsInSetCanMerge = struct {
         for (map_ptr.values()) |group| {
             // Type shape comparison: only meaningful when 2+ fields share a response key.
             if (group.items.len >= 2) {
-                // Find the first group member with a known field_def to use as the
-                // comparison anchor.  Pinning to items[0] silently skips the whole
-                // group when that entry has no definition.
-                var anchor_idx: ?usize = null;
-                for (group.items, 0..) |item, i| {
-                    if (item.field_def != null) {
-                        anchor_idx = i;
-                        break;
+                // Find the first field with a resolved definition to use as anchor.
+                // Rust's same_output_type_shape returns Ok(()) when types are unknown,
+                // so comparisons involving an unresolvable anchor are always no-ops.
+                // We rotate to the first resolvable field so that two resolvable fields
+                // with conflicting types are still checked even if items[0] is unresolved.
+                const anchor_idx: ?usize = blk: {
+                    for (group.items, 0..) |f, i| {
+                        if (f.field_def != null) break :blk i;
                     }
-                }
+                    break :blk null;
+                };
                 if (anchor_idx) |ai| {
                     const field_a = group.items[ai];
                     for (group.items) |field_b| {
                         if (field_b.field == field_a.field) continue;
                         const def_b = field_b.field_def orelse continue;
-                        const s = self.schema orelse continue;
-                        if (!sameOutputTypeShape(s, field_a.field_def.?.type, def_b.type)) {
+                        if (!sameOutputTypeShape(self.schema, field_a.field_def.?.type, def_b.type)) {
                             try diagnostics.push(.ConflictingFieldType);
                         }
                     }
@@ -591,8 +590,7 @@ pub const FieldsInSetCanMerge = struct {
                     try abstract.append(sel);
                     continue;
                 };
-                const s = self.schema orelse continue;
-                const def = s.type_definitions.get(pt.name.value) orelse continue;
+                const def = self.schema.type_definitions.get(pt.name.value) orelse continue;
                 switch (def) {
                     .ObjectTypeDefinition => {
                         const gop = try concrete.getOrPut(pt.name.value);

@@ -269,6 +269,28 @@ pub const ValidationErrorKind = enum {
     /// Two fields share the same response key but have incompatible return type shapes.
     /// See https://spec.graphql.org/draft/#sec-Field-Selection-Merging
     ConflictingFieldType,
+    // SubscriptionSingleFieldRule
+    /// A subscription must have exactly one root field selection.
+    /// See https://spec.graphql.org/draft/#sec-Single-root-field
+    SubscriptionUsesMultipleFields,
+    /// A subscription root selection must not be an introspection field.
+    /// See https://spec.graphql.org/draft/#sec-Single-root-field
+    SubscriptionUsesIntrospection,
+    /// A subscription root selection must not use @skip or @include.
+    /// See https://spec.graphql.org/draft/#sec-Single-root-field
+    SubscriptionUsesConditionalSelection,
+    // DeferValidation
+    /// Two @defer directives share the same label value.
+    /// See https://spec.graphql.org/draft/#sec-Defer-And-Stream-Directives
+    UniqueDefer,
+    /// The @defer label argument must be a string literal, not a variable.
+    DeferLabelVariable,
+    /// @defer is not allowed on root selections of a mutation.
+    DeferOnRootMutation,
+    /// @defer is not allowed on root selections of a subscription.
+    DeferOnRootSubscription,
+    /// A subscription @defer must be disableable via an `if:` argument.
+    SubscriptionDeferConditional,
 };
 
 // TODO: import the validation object in the future

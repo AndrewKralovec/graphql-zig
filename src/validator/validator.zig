@@ -12,6 +12,8 @@ pub const RecursionStack = @import("./traversal/traversal.zig").RecursionStack;
 
 pub const validateOperationDefinitions = @import("validation/operation.zig").validateOperationDefinitions;
 pub const validateFragmentsUsed = @import("validation/fragment.zig").validateFragmentsUsed;
+pub const validateDefer = @import("validation/operation.zig").validateDefer;
+pub const validateSubscription = @import("validation/operation.zig").validateSubscription;
 pub const buildSchema = @import("schema/builder.zig").buildSchema;
 pub const validateSchema = @import("schema/validation.zig").validateSchema;
 
@@ -46,6 +48,7 @@ pub const Validator = struct {
         try validateOperationDefinitions(&diagnostics, &exec_doc, &context);
         try validateWithSchema(self.allocator, &diagnostics, self.schema, &exec_doc);
         try validateFragmentsUsed(self.allocator, &diagnostics, &exec_doc);
+        try validateDefer(self.allocator, &diagnostics, &exec_doc);
 
         return diagnostics.toOwnedSlice();
     }
@@ -66,12 +69,14 @@ pub const Validator = struct {
         var validator = FieldsInSetCanMerge.init(arena_alloc, schema, exec_doc);
 
         if (exec_doc.operations.anonymous) |op| {
+            try validateSubscription(allocator, diagnostics, exec_doc, op);
             if (op.selection_set) |sel_set| {
                 const against_type = schema.rootOperation(op.operation);
                 try validator.validateOperation(diagnostics, arena_alloc, sel_set, against_type);
             }
         }
         for (exec_doc.operations.named.values()) |op| {
+            try validateSubscription(allocator, diagnostics, exec_doc, op);
             if (op.selection_set) |sel_set| {
                 const against_type = schema.rootOperation(op.operation);
                 try validator.validateOperation(diagnostics, arena_alloc, sel_set, against_type);

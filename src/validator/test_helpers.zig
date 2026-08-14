@@ -3,8 +3,8 @@ const std = @import("std");
 const ast = @import("../graphql.zig").ast;
 const parse = @import("../graphql.zig").parser.parse;
 pub const Schema = @import("./schema/schema.zig").Schema;
-pub const ValidationError = @import("./errors.zig").ValidationError;
-pub const ValidationErrorKind = @import("./errors.zig").ValidationErrorKind;
+pub const ValidationError = @import("./errors/errors.zig").ValidationError;
+pub const ValidationErrorKind = @import("./errors/errors.zig").ValidationErrorKind;
 pub const validateExecutableDocument = @import("../graphql.zig").validator.validateExecutableDocument;
 
 // Test helpers
