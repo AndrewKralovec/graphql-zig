@@ -17,7 +17,7 @@ const walk_depth_limit: u32 = 500;
 /// and the fragment's nested selections are reported.
 ///
 /// Does not recurse into nested fields.
-fn walkSelections(
+pub fn walkSelections(
     comptime Context: type,
     comptime recurse_fields: bool,
     comptime recurse_fragments: bool,

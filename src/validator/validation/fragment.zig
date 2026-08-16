@@ -9,6 +9,7 @@ const ImplementersMap = @import("../context/validation_context.zig").Implementer
 
 const validateSelectionSet = @import("./selection.zig").validateSelectionSet;
 const validateDirectives = @import("./directive.zig").validateDirectives;
+const walkSelections = @import("./operation.zig").walkSelections;
 
 /// Given a type definition, find all the type names that can be used for fragment spreading.
 ///
@@ -26,7 +27,6 @@ fn getPossibleTypes(
             try set.put(obj.name.value, {});
         },
         // 2. If `type` is an interface type, return the set of object types implementing `type`.
-        // Uses the pre-built implementers_map instead of scanning all schema types.
         .InterfaceTypeDefinition => |iface| {
             if (implementers_map.get(iface.name.value)) |implementers| {
                 var it = implementers.objects.keyIterator();
@@ -49,16 +49,15 @@ fn getPossibleTypes(
     return set;
 }
 
-// NOTE: apollo-rs also passes document and selection here to produce richer diagnostics
-// (fragment name, source location, inline vs named spread distinction)
-// that is why it is omitted for now.
 fn validateFragmentSpreadType(
     diagnostics: *DiagnosticList,
     schema: *const Schema,
     against_type: ast.NamedTypeNode,
     type_condition: ast.NamedTypeNode,
+    selection: ast.SelectionNode,
     context: *OperationValidationContext,
 ) std.mem.Allocator.Error!void {
+    _ = selection; // NOTE: ignored until its needed for rich diagnostics
     // Treat a spread that's just literally on the parent type as always valid:
     // by spec text, it shouldn't be, but graphql-{js,java,go} and others all do this.
     // See https://github.com/graphql/graphql-spec/issues/1109
@@ -131,6 +130,7 @@ pub fn validateInlineFragment(
                         s,
                         parent,
                         type_cond,
+                        ast.SelectionNode{ .InlineFragment = inline_fragment },
                         context,
                     );
                 }
@@ -184,6 +184,7 @@ pub fn validateFragmentSpread(
                 s,
                 parent,
                 frag_def.type_condition,
+                ast.SelectionNode{ .FragmentSpread = spread },
                 context,
             );
         }
@@ -227,8 +228,9 @@ pub fn validateFragmentDefinition(
     const has_cycles = diagnostics.len() > previous_cycles;
 
     if (!has_type_error and !has_cycles) {
-        // Only pass the type condition to selection validation if the type actually exists
-        // in the schema; if not, it has already raised an error or we have no schema.
+        // If the type does not exist, do not attempt to validate the selections against it;
+        // it has either already raised an error, or we are validating an executable without
+        // a schema.
         const fragment_against_type: ?ast.NamedTypeNode = blk: {
             const s = schema orelse break :blk null;
             if (s.type_definitions.contains(fragment.type_condition.name.value))
@@ -267,14 +269,12 @@ fn detectFragmentCycles(
                 } else false;
 
                 if (in_path) {
-                    // Only the cycle back to the ROOT fragment is reported here cycles involving other fragments are reported when those
-                    // fragments are validated as root.
                     if (std.mem.eql(u8, path.items[0], spread_name))
                         return error.CycleDetected;
                     continue;
                 }
 
-                // Already traversed this subtree for the current root — safe.
+                // We already recursively traversed that fragment and didn't find a cycle then
                 const gop = try seen.getOrPut(spread_name);
                 if (gop.found_existing) continue;
 
@@ -333,57 +333,38 @@ fn validateFragmentTypeCondition(
     }
 }
 
-const max_walk_depth = 500;
-
-const CollectWalkError = error{RecursionLimitExceeded} || std.mem.Allocator.Error;
-
-fn walkCollectFragments(
-    exec_doc: *const ExecutableDocument,
-    selection_set: ast.SelectionSetNode,
+const CollectCtx = struct {
     names: *std.StringHashMap(void),
-    seen: *std.StringHashMap(void),
-    depth: usize,
-) CollectWalkError!void {
-    if (depth >= max_walk_depth) return error.RecursionLimitExceeded;
+};
 
-    for (selection_set.selections) |selection| {
-        switch (selection) {
-            .FragmentSpread => |spread| {
-                try names.put(spread.name.value, {});
-                const gop = try seen.getOrPut(spread.name.value);
-                if (gop.found_existing) continue;
-                const frag_def = exec_doc.getFragment(spread.name.value) orelse continue;
-                try walkCollectFragments(exec_doc, frag_def.selection_set, names, seen, depth + 1);
-            },
-            .InlineFragment => |inline_frag| {
-                try walkCollectFragments(exec_doc, inline_frag.selection_set, names, seen, depth + 1);
-            },
-            .Field => |field| {
-                const sel_set = field.selection_set orelse continue;
-                try walkCollectFragments(exec_doc, sel_set, names, seen, depth + 1);
-            },
-        }
+fn visitCollectFragments(ctx: *CollectCtx, sel: ast.SelectionNode) anyerror!void {
+    switch (sel) {
+        .FragmentSpread => |spread| try ctx.names.put(spread.name.value, {}),
+        else => {},
     }
 }
 
 fn collectUsedFragments(
     allocator: std.mem.Allocator,
     exec_doc: *const ExecutableDocument,
-) CollectWalkError!std.StringHashMap(void) {
+) !std.StringHashMap(void) {
     var names = std.StringHashMap(void).init(allocator);
     errdefer names.deinit();
 
-    var seen = std.StringHashMap(void).init(allocator);
-    defer seen.deinit();
+    var ctx = CollectCtx{ .names = &names };
 
     if (exec_doc.operations.anonymous) |op| {
         if (op.selection_set) |sel_set| {
-            try walkCollectFragments(exec_doc, sel_set, &names, &seen, 0);
+            var seen = std.StringHashMap(void).init(allocator);
+            defer seen.deinit();
+            try walkSelections(CollectCtx, true, true, exec_doc, sel_set.selections, &seen, 0, &ctx, visitCollectFragments);
         }
     }
     for (exec_doc.operations.named.values()) |op| {
         if (op.selection_set) |sel_set| {
-            try walkCollectFragments(exec_doc, sel_set, &names, &seen, 0);
+            var seen = std.StringHashMap(void).init(allocator);
+            defer seen.deinit();
+            try walkSelections(CollectCtx, true, true, exec_doc, sel_set.selections, &seen, 0, &ctx, visitCollectFragments);
         }
     }
 
@@ -405,6 +386,9 @@ pub fn validateFragmentsUsed(
     defer used_fragments.deinit();
 
     for (exec_doc.fragments.values()) |fragment| {
+        // Fragments must be used within the schema
+        //
+        // Returns Unused Fragment error.
         if (!used_fragments.contains(fragment.name.value)) {
             try diagnostics.push(.UnusedFragment);
         }
