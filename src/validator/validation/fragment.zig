@@ -382,6 +382,7 @@ pub fn validateFragmentsUsed(
             return;
         },
         error.OutOfMemory => return error.OutOfMemory,
+        else => |e| return e,
     };
     defer used_fragments.deinit();
 
