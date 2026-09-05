@@ -11,6 +11,7 @@ pub fn buildSchema(
     var schema = Schema.init(allocator);
     errdefer schema.deinit();
 
+    var seen_schema_def = false;
     for (document.definitions) |def| {
         switch (def) {
             .ExecutableDefinition => {
@@ -18,7 +19,12 @@ pub fn buildSchema(
             },
             .TypeSystemDefinition => |ts| switch (ts) {
                 .SchemaDefinition => |schema_def| {
-                    schema.setSchemaDefinition(schema_def);
+                    if (seen_schema_def) {
+                        try diagnostics.push(.UniqueDefinition);
+                    } else {
+                        seen_schema_def = true;
+                        schema.setSchemaDefinition(schema_def);
+                    }
                 },
                 .TypeDefinition => |type_def| {
                     const name = typeDefName(type_def);
@@ -44,13 +50,13 @@ pub fn buildSchema(
         }
     }
 
-    try buildFieldIndex(&schema, document);
+    try buildFieldIndex(&schema, diagnostics, document);
 
     return schema;
 }
 
-// TODO: review the repeat passes.
-fn buildFieldIndex(schema: *Schema, document: ast.DocumentNode) !void {
+fn buildFieldIndex(schema: *Schema, diagnostics: *DiagnosticList, document: ast.DocumentNode) !void {
+    // NOTE: two passes ensure definition fields always precede extension fields in insertion order regardless of document order
     // Pass 1: base types (object and interface)
     for (document.definitions) |def| {
         const type_def = switch (def) {
@@ -64,13 +70,27 @@ fn buildFieldIndex(schema: *Schema, document: ast.DocumentNode) !void {
             .ObjectTypeDefinition => |obj| {
                 if (obj.fields) |list| {
                     const map = try schema.getOrPutFieldMap(obj.name.value);
-                    for (list) |field| try map.put(field.name.value, field);
+                    for (list) |field| {
+                        const entry = try map.getOrPut(field.name.value);
+                        if (entry.found_existing) {
+                            try diagnostics.push(.UniqueDefinition);
+                        } else {
+                            entry.value_ptr.* = field;
+                        }
+                    }
                 }
             },
             .InterfaceTypeDefinition => |iface| {
                 if (iface.fields) |list| {
                     const map = try schema.getOrPutFieldMap(iface.name.value);
-                    for (list) |field| try map.put(field.name.value, field);
+                    for (list) |field| {
+                        const entry = try map.getOrPut(field.name.value);
+                        if (entry.found_existing) {
+                            try diagnostics.push(.UniqueDefinition);
+                        } else {
+                            entry.value_ptr.* = field;
+                        }
+                    }
                 }
             },
             else => {},
@@ -88,21 +108,69 @@ fn buildFieldIndex(schema: *Schema, document: ast.DocumentNode) !void {
         };
         switch (type_ext) {
             .ObjectTypeExtension => |ext| {
+                const existing = schema.type_definitions.get(ext.name.value) orelse {
+                    try diagnostics.push(.UndefinedDefinition);
+                    continue;
+                };
+                if (existing != .ObjectTypeDefinition) {
+                    try diagnostics.push(.TypeExtensionKindMismatch);
+                    continue;
+                }
                 if (ext.fields) |list| {
                     const map = try schema.getOrPutFieldMap(ext.name.value);
-                    for (list) |field| try map.put(field.name.value, field);
+                    for (list) |field| {
+                        const entry = try map.getOrPut(field.name.value);
+                        if (entry.found_existing) {
+                            try diagnostics.push(.UniqueDefinition);
+                        } else {
+                            entry.value_ptr.* = field;
+                        }
+                    }
                 }
             },
             .InterfaceTypeExtension => |ext| {
+                const existing = schema.type_definitions.get(ext.name.value) orelse {
+                    try diagnostics.push(.UndefinedDefinition);
+                    continue;
+                };
+                if (existing != .InterfaceTypeDefinition) {
+                    try diagnostics.push(.TypeExtensionKindMismatch);
+                    continue;
+                }
                 if (ext.fields) |list| {
                     const map = try schema.getOrPutFieldMap(ext.name.value);
-                    for (list) |field| try map.put(field.name.value, field);
+                    for (list) |field| {
+                        const entry = try map.getOrPut(field.name.value);
+                        if (entry.found_existing) {
+                            try diagnostics.push(.UniqueDefinition);
+                        } else {
+                            entry.value_ptr.* = field;
+                        }
+                    }
                 }
             },
-            else => {},
+            inline else => |ext| {
+                const existing = schema.type_definitions.get(ext.name.value) orelse {
+                    try diagnostics.push(.UndefinedDefinition);
+                    continue;
+                };
+                if (!extensionKindMatchesDef(type_ext, existing)) {
+                    try diagnostics.push(.TypeExtensionKindMismatch);
+                }
+            },
         }
     }
+}
 
+fn extensionKindMatchesDef(ext: ast.TypeExtensionNode, def: ast.TypeDefinitionNode) bool {
+    return switch (ext) {
+        .ScalarTypeExtension => def == .ScalarTypeDefinition,
+        .ObjectTypeExtension => def == .ObjectTypeDefinition,
+        .InterfaceTypeExtension => def == .InterfaceTypeDefinition,
+        .UnionTypeExtension => def == .UnionTypeDefinition,
+        .EnumTypeExtension => def == .EnumTypeDefinition,
+        .InputObjectTypeExtension => def == .InputObjectTypeDefinition,
+    };
 }
 
 fn typeDefName(type_def: ast.TypeDefinitionNode) []const u8 {

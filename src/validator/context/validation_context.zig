@@ -1,65 +1,10 @@
 const std = @import("std");
-const Schema = @import("../schema/schema.zig").Schema;
+const schema_mod = @import("../schema/schema.zig");
+const Schema = schema_mod.Schema;
 const ast = @import("../../graphql.zig").ast;
 
-/// Names of types that implement a given interface, split by kind.
-/// Mirrors apollo-rs `schema::Implementers`.
-pub const Implementers = struct {
-    /// Concrete object types that implement the interface.
-    objects: std.StringHashMap(void),
-    /// Interface types that implement the interface.
-    interfaces: std.StringHashMap(void),
-
-    pub fn deinit(self: *Implementers) void {
-        self.objects.deinit();
-        self.interfaces.deinit();
-    }
-};
-
-pub const ImplementersMap = std.StringHashMap(Implementers);
-
-/// Scan every Object and Interface type in the schema and build the reverse-lookup map.
-/// Mirrors Schema::implementers_map() in apollo-rs.
-fn buildImplementersMap(allocator: std.mem.Allocator, schema: *const Schema) !ImplementersMap {
-    var map = ImplementersMap.init(allocator);
-    errdefer {
-        var it = map.valueIterator();
-        while (it.next()) |v| v.deinit();
-        map.deinit();
-    }
-
-    for (schema.type_definitions.values()) |type_def| {
-        switch (type_def) {
-            .ObjectTypeDefinition => |obj| {
-                for (obj.interfaces orelse &[_]ast.NamedTypeNode{}) |iface| {
-                    const gop = try map.getOrPut(iface.name.value);
-                    if (!gop.found_existing) {
-                        gop.value_ptr.* = .{
-                            .objects = std.StringHashMap(void).init(allocator),
-                            .interfaces = std.StringHashMap(void).init(allocator),
-                        };
-                    }
-                    try gop.value_ptr.objects.put(obj.name.value, {});
-                }
-            },
-            .InterfaceTypeDefinition => |iface| {
-                for (iface.interfaces orelse &[_]ast.NamedTypeNode{}) |implemented| {
-                    const gop = try map.getOrPut(implemented.name.value);
-                    if (!gop.found_existing) {
-                        gop.value_ptr.* = .{
-                            .objects = std.StringHashMap(void).init(allocator),
-                            .interfaces = std.StringHashMap(void).init(allocator),
-                        };
-                    }
-                    try gop.value_ptr.interfaces.put(iface.name.value, {});
-                }
-            },
-            else => {},
-        }
-    }
-
-    return map;
-}
+pub const Implementers = schema_mod.Implementers;
+pub const ImplementersMap = schema_mod.ImplementersMap;
 
 /// Shared context with things that may be used throughout executable validation.
 pub const ExecutableValidationContext = struct {
@@ -99,7 +44,7 @@ pub const ExecutableValidationContext = struct {
     pub fn implementersMap(self: *ExecutableValidationContext) !*const ImplementersMap {
         if (self.cached_implementers_map == null) {
             if (self.inner_schema) |s| {
-                self.cached_implementers_map = try buildImplementersMap(self.allocator, s);
+                self.cached_implementers_map = try s.implementersMap(self.allocator);
             } else {
                 self.cached_implementers_map = ImplementersMap.init(self.allocator);
             }

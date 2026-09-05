@@ -491,6 +491,37 @@ pub const TypeDefinitionNode = union(enum) {
             .ScalarTypeDefinition, .EnumTypeDefinition, .InputObjectTypeDefinition => false,
         };
     }
+
+    pub fn isLeaf(type_def: TypeDefinitionNode) bool {
+        return switch (type_def) {
+            .ScalarTypeDefinition, .EnumTypeDefinition => true,
+            else => false,
+        };
+    }
+
+    pub fn describe(type_def: TypeDefinitionNode) []const u8 {
+        return switch (type_def) {
+            // TODO: fix magic strings.
+            .ScalarTypeDefinition => "a scalar type",
+            .ObjectTypeDefinition => "an object type",
+            .InterfaceTypeDefinition => "an interface type",
+            .UnionTypeDefinition => "a union type",
+            .EnumTypeDefinition => "an enum type",
+            .InputObjectTypeDefinition => "an input object type",
+        };
+    }
+
+    /// Returns true for built-in scalars
+    /// and introspection types (names starting with "__").
+    pub fn isBuiltIn(type_def: TypeDefinitionNode) bool {
+        const n = switch (type_def) {
+            inline else => |v| v.name.value,
+        };
+        if (std.mem.startsWith(u8, n, "__")) return true;
+        const scalars = [_][]const u8{ "String", "Int", "Float", "Boolean", "ID" };
+        for (scalars) |s| if (std.mem.eql(u8, n, s)) return true;
+        return false;
+    }
 };
 
 /// See: https://spec.graphql.org/October2021/#ScalarTypeDefinition

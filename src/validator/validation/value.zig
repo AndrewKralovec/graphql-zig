@@ -128,7 +128,6 @@ pub fn valueOfCorrectType(
         },
         .Variable => |variable| {
             const var_name = variable.name.value;
-            const type_name = ty.innerNamedType().name.value;
             const var_def = for (var_defs) |def| {
                 if (std.mem.eql(u8, def.variable.name.value, var_name)) break def;
             } else {
@@ -137,10 +136,7 @@ pub fn valueOfCorrectType(
             };
             switch (type_def) {
                 .ScalarTypeDefinition, .EnumTypeDefinition, .InputObjectTypeDefinition => {
-                    // we don't have the actual variable values here, so just
-                    // compare if two Types are the same
-                    // TODO: This should use the is_assignable_to check
-                    if (!std.mem.eql(u8, var_def.type.innerNamedType().name.value, type_name)) {
+                    if (!var_def.type.isAssignableTo(ty)) {
                         try diagnostics.push(.UnsupportedValueType);
                     }
                 },

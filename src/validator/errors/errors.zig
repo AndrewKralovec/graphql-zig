@@ -237,6 +237,10 @@ pub const ValidationErrorKind = enum {
     /// The first definition wins; subsequent ones are ignored.
     /// See https://spec.graphql.org/draft/#sec-Type-System
     UniqueDefinition,
+    /// A type extension's kind does not match the kind of the type it extends.
+    /// e.g. `extend type Foo` where `Foo` is an interface, not an object.
+    /// See https://spec.graphql.org/draft/#sec-Type-System-Extensions
+    TypeExtensionKindMismatch,
     /// A type, directive, field, or argument name starts with __ (double underscore),
     /// which is reserved for GraphQL introspection system use.
     /// See https://spec.graphql.org/draft/#sec-Names.Reserved-Names
